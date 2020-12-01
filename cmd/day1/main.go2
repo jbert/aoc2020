@@ -16,6 +16,7 @@ func main() {
 	// We're already O(N * log N) due to the sort
 	// so linear scan through array (smallest first), plus binary search on the remainder should be OK
 
+PARTA:
 	for iA := 0; iA < len(nums)-2; iA++ {
 		a := nums[iA]
 		//fmt.Printf("iA %d a %d\n", iA, a)
@@ -27,7 +28,25 @@ func main() {
 		b := nums[iB]
 		if ok {
 			fmt.Printf("A %d B %d sum %d product %d\n", a, b, a+b, a*b)
-			break
+			break PARTA
 		}
 	}
+
+	// We can do O(N^2 log N) by walking both iA and iB up and binary search for iC
+PARTB:
+	for iA := 0; iA < len(nums)-2; iA++ {
+		a := nums[iA]
+		for iB := iA; iB < len(nums)-2; iB++ {
+			b := nums[iB]
+			iC, ok := aoc.BinarySearch(nums[iB+1:], func(i int) int {
+				return targetSum - (nums[i] + a + b)
+			})
+			c := nums[iC]
+			if ok {
+				fmt.Printf("A %d B %d C %d sum %d product %d\n", a, b, c, a+b+c, a*b*c)
+				break PARTB
+			}
+		}
+	}
+
 }
