@@ -1,0 +1,33 @@
+package main
+
+import (
+	"aoc"
+	"fmt"
+	"sort"
+)
+
+func main() {
+	a := aoc.New(1)
+	nums := a.ReadInts()
+	sort.Ints(nums)
+
+	targetSum := 2020
+
+	// We're already O(N * log N) due to the sort
+	// so linear scan through array (smallest first), plus binary search on the remainder should be OK
+
+	for iA := 0; iA < len(nums)-2; iA++ {
+		a := nums[iA]
+		//fmt.Printf("iA %d a %d\n", iA, a)
+		iB, ok := aoc.BinarySearch(nums[iA+1:], func(i int) int {
+			//			fmt.Printf("Try i %d nums[i] %d sum %d\n", i, nums[i], nums[i]+a)
+			// Comparator is > 0 for "look for bigger numbers" (to the right)
+			return targetSum - (nums[i] + a)
+		})
+		b := nums[iB]
+		if ok {
+			fmt.Printf("A %d B %d sum %d product %d\n", a, b, a+b, a*b)
+			break
+		}
+	}
+}

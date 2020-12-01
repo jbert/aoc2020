@@ -1,0 +1,119 @@
+package aoc
+
+import (
+	"fmt"
+	"os"
+	"io"
+	"bufio"
+	"strconv"
+)
+
+type AOC struct {
+	day int
+}
+
+func New(day int) *AOC {
+	return &AOC{day: day}
+}
+
+func (aoc *AOC) Name() string {
+	return fmt.Sprintf("day%d", aoc.day)
+}
+
+func (aoc *AOC) ReadInts() []int {
+	lines := aoc.ReadLines()
+	nums := []int{}
+	for _, l := range lines {
+		num, err := strconv.Atoi(l)
+		if err != nil {
+			panic(fmt.Sprintf("Can't parse line as number: [%s]: %s", l, err))
+		}
+		nums = append(nums, num)
+	}
+	return nums
+}
+
+func (aoc *AOC) ReadLines() []string {
+	inputPath := fmt.Sprintf("/home/john/dev/jbert/aoc2020/input/%s.txt", aoc.Name())
+	f, err := os.Open(inputPath)
+	if err != nil {
+		panic(fmt.Sprintf("Can't open input file [%s]: %s", inputPath, err))
+	}
+	defer f.Close()
+	b := bufio.NewReader(f)
+	lines := []string{}
+	for {
+		line, err := b.ReadString('\n')
+		if line != "" {
+			line = line[:len(line)-1]	// Trim newline
+			lines = append(lines, line)
+		}
+		if err != nil {
+			if err != io.EOF {
+				panic(fmt.Sprintf("Error reading input file [%s]: %s", inputPath, err))
+			}
+			break
+		}
+	}
+	return lines
+}
+
+func Max[T Ordered](a, b T) T {
+	if (a > b) {
+		return a
+	}
+	return b
+}
+
+func BinarySearch[T](l []T, cmp func(i int) int) (int, bool) {
+	if len(l) < 1 {
+		return 0, false
+	}
+	pivot := len(l) / 2
+	comparison := cmp(pivot)
+	if comparison == 0 {
+		return pivot, true
+	}
+	if len(l) < 2 {
+		return 0, false
+	}
+
+	if comparison < 0 {
+		return BinarySearch(l[:pivot], cmp)
+	} else {
+		i, ok := BinarySearch(l[pivot:], func(i int) int {
+			return cmp(i+pivot)
+		})
+		return i + pivot, ok
+	}
+}
+
+
+// ----
+// Copied from : go/src/cmd/go2go/testdata/go2path/src/constraints/constraints.go2
+
+
+// Ordered permits any ordered type: any type that supports
+// the operations <, <=, >=, >, as well as == and !=.
+type Ordered interface {
+	type int, int8, int16, int32, int64,
+	uint, uint8, uint16, uint32, uint64, uintptr,
+	float32, float64,
+	string
+}
+
+// Integer permits any integer type.
+type Integer interface {
+	type int, int8, int16, int32, int64,
+	uint, uint8, uint16, uint32, uint64, uintptr
+}
+
+// Signed permits any signed integer type.
+type Signed interface {
+	type int, int8, int16, int32, int64
+}
+
+// Unsigned permits any unsigned integer type.
+type Unsigned interface {
+	type uint, uint8, uint16, uint32, uint64, uintptr
+}
