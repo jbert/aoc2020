@@ -1,7 +1,6 @@
 use v6;
 
-my $file = open("input/day1.txt");
-my $nums = $file.lines.map(*.Int).Set;
+my $nums = "input/day1.txt".IO.lines.map(*.Int).Set;
 
 my $target = 2020;
 NUM: for $nums.keys -> $num {
