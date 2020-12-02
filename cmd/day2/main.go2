@@ -10,14 +10,19 @@ import (
 func main() {
 	a := aoc.New(2)
 	lines := a.ReadLines()
+
 	validPasswords := 0
+	bValidPasswords := 0
 	for _, line := range lines {
 		policy, pw := splitPasswordLine(line)
 		if policy.IsValid(pw) {
 			validPasswords++
 		}
+		if policy.IsBValid(pw) {
+			bValidPasswords++
+		}
 	}
-	fmt.Printf("%d passwords, %d valid\n", len(lines), validPasswords)
+	fmt.Printf("%d passwords, %d valid %d bvalid\n", len(lines), validPasswords, bValidPasswords)
 }
 
 func splitPasswordLine(line string) (Policy, string) {
@@ -60,4 +65,15 @@ func (p Policy) IsValid(pw string) bool {
 		}
 	}
 	return p.lo <= count && count <= p.hi
+}
+
+func (p Policy) IsBValid(pw string) bool {
+	matches := 0
+	if pw[p.lo-1] == p.letter {
+		matches++
+	}
+	if pw[p.hi-1] == p.letter {
+		matches++
+	}
+	return matches == 1
 }
