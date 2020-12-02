@@ -1,0 +1,63 @@
+package main
+
+import (
+	"aoc"
+	"fmt"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	a := aoc.New(2)
+	lines := a.ReadLines()
+	validPasswords := 0
+	for _, line := range lines {
+		policy, pw := splitPasswordLine(line)
+		if policy.IsValid(pw) {
+			validPasswords++
+		}
+	}
+	fmt.Printf("%d passwords, %d valid\n", len(lines), validPasswords)
+}
+
+func splitPasswordLine(line string) (Policy, string) {
+	bits := strings.SplitN(line, ": ", 2)
+	policyStr := bits[0]
+	pw := bits[1]
+
+	policy := NewPolicy(policyStr)
+	return policy, pw
+}
+
+type Policy struct {
+	lo, hi int
+	letter byte
+}
+
+func NewPolicy(policyStr string) Policy {
+	bits := strings.SplitN(policyStr, " ", 2)
+	rangeStr := bits[0]
+	letter := bits[1]
+
+	bits = strings.SplitN(rangeStr, "-", 2)
+	loStr := bits[0]
+	hiStr := bits[1]
+
+	lo, _ := strconv.Atoi(loStr)
+	hi, _ := strconv.Atoi(hiStr)
+	return Policy{
+		lo:     lo,
+		hi:     hi,
+		letter: letter[0],
+	}
+}
+
+func (p Policy) IsValid(pw string) bool {
+	count := 0
+	for i := range pw {
+		if pw[i] == p.letter {
+			count++
+		}
+	}
+	return p.lo <= count && count <= p.hi
+}
