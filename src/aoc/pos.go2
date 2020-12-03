@@ -1,0 +1,30 @@
+package aoc
+
+import (
+	"fmt"
+)
+
+type Pos[T Numeric] struct {
+	X, Y T
+}
+
+func (p Pos[T]) String() string {
+	numFormat := "%d"
+	switch (interface{})(p.X).(type) {
+	case float64:
+		numFormat = "%f"
+	case float32:
+		numFormat = "%f"
+	}
+	format := fmt.Sprintf("[%s, %s]", numFormat, numFormat)
+
+	return fmt.Sprintf(format, p.X, p.Y)
+}
+
+func (p Pos[T]) Add(q Pos[T]) Pos[T] {
+	return Pos[T]{X: p.X + q.X, Y: p.Y + q.Y}
+}
+
+func (p Pos[T]) Equals(q Pos[T]) bool {
+	return p.X == q.X && p.Y == q.Y
+}

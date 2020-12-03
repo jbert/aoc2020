@@ -5,56 +5,53 @@ import (
 	"fmt"
 )
 
-type Slope struct {
-	right int
-	down  int
-}
+type Slope aoc.Pos[int]
 
 type Trees struct {
-	width  int
-	height int
+	size aoc.Pos[int]
 	lines  []string
 }
 
 func NewTrees(lines []string) Trees {
 	t := Trees{lines: lines}
-	t.height = len(t.lines)
-	t.width = len(lines[0])
+	t.size = aoc.Pos[int]{
+		X: len(lines[0]),
+		Y: len(t.lines),
+	}
 	return t
 }
 
-func (t Trees) TreesOnTraverse(slope Slope) int {
-	x, y := 0, 0
+func (t Trees) TreesOnTraverse(slope aoc.Pos[int]) int {
+	pos := aoc.Pos[int]{}
 
 	numTrees := 0
-	for y < t.height {
-		if t.IsTree(x, y) {
+	for pos.Y < t.size.Y {
+		if t.IsTree(pos) {
 			numTrees++
 		}
-		x += slope.right
-		y += slope.down
+		pos = pos.Add(slope)
 	}
 	return numTrees
 }
 
-func (t Trees) IsTree(x, y int) bool {
-	if y > t.height {
-		panic(fmt.Sprintf("Y out of bounds: %d > %d", y, t.height))
+func (t Trees) IsTree(p aoc.Pos[int]) bool {
+	if p.Y > t.size.Y {
+		panic(fmt.Sprintf("Y out of bounds: %d > %d", p.Y, t.size.Y))
 	}
-	x = x % t.width
-	return t.lines[y][x] == '#'
+	p.X = p.X % t.size.X
+	return t.lines[p.Y][p.X] == '#'
 }
 
 func main() {
 	a := aoc.New(3)
 	lines := a.ReadLines()
 
-	slope := Slope{right: 3, down: 1}
+	slope := aoc.Pos[int]{X: 3, Y: 1}
 	t := NewTrees(lines)
 
 	fmt.Printf("Trees: %d\n", t.TreesOnTraverse(slope))
 
-	slopes := []Slope{
+	slopes := []aoc.Pos[int]{
 		{1, 1},
 		{3, 1},
 		{5, 1},

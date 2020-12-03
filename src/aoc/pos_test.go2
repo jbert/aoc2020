@@ -1,0 +1,21 @@
+package aoc
+
+import "testing"
+
+func TestPos(t *testing.T) {
+	p := Pos[int]{1, 2}
+	if p.String() != "[1, 2]" {
+		t.Fatalf("Can't stringify %v", p)
+	}
+	q := Pos[int]{3, 4}
+
+	if p.Equals(q) {
+		t.Fatalf("%s should != %s", p, q)
+	}
+
+	got := p.Add(q)
+	expected := Pos[int]{4,6}
+	if !got.Equals(expected) {
+		t.Fatalf("Can't add: got %s expected %s", got, expected)
+	}
+}
