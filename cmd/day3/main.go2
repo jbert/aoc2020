@@ -53,4 +53,18 @@ func main() {
 	t := NewTrees(lines)
 
 	fmt.Printf("Trees: %d\n", t.TreesOnTraverse(slope))
+
+	slopes := []Slope{
+		{1, 1},
+		{3, 1},
+		{5, 1},
+		{7, 1},
+		{1, 2},
+	}
+	product := 1
+	for _, slope := range slopes {
+		numTrees := t.TreesOnTraverse(slope)
+		product *= numTrees
+	}
+	fmt.Printf("product: %d\n", product)
 }
