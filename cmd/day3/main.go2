@@ -1,0 +1,56 @@
+package main
+
+import (
+	"aoc"
+	"fmt"
+)
+
+type Slope struct {
+	right int
+	down  int
+}
+
+type Trees struct {
+	width  int
+	height int
+	lines  []string
+}
+
+func NewTrees(lines []string) Trees {
+	t := Trees{lines: lines}
+	t.height = len(t.lines)
+	t.width = len(lines[0])
+	return t
+}
+
+func (t Trees) TreesOnTraverse(slope Slope) int {
+	x, y := 0, 0
+
+	numTrees := 0
+	for y < t.height {
+		if t.IsTree(x, y) {
+			numTrees++
+		}
+		x += slope.right
+		y += slope.down
+	}
+	return numTrees
+}
+
+func (t Trees) IsTree(x, y int) bool {
+	if y > t.height {
+		panic(fmt.Sprintf("Y out of bounds: %d > %d", y, t.height))
+	}
+	x = x % t.width
+	return t.lines[y][x] == '#'
+}
+
+func main() {
+	a := aoc.New(3)
+	lines := a.ReadLines()
+
+	slope := Slope{right: 3, down: 1}
+	t := NewTrees(lines)
+
+	fmt.Printf("Trees: %d\n", t.TreesOnTraverse(slope))
+}
