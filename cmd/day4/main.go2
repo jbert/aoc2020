@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 
 	"aoc"
@@ -26,20 +28,57 @@ func main() {
 		`
 			lines := strings.Split(egData, "\n")
 	*/
+
+	/*
+			allInvalid := `eyr:1972 cid:100
+		hcl:#18171d ecl:amb hgt:170 pid:186cm iyr:2018 byr:1926
+
+		iyr:2019
+		hcl:#602927 eyr:1967 hgt:170cm
+		ecl:grn pid:012533040 byr:1946
+
+		hcl:dab227 iyr:2012
+		ecl:brn hgt:182cm pid:021572410 eyr:2020 byr:1992 cid:277
+
+		hgt:59cm ecl:zzz
+		eyr:2038 hcl:74454a iyr:2023
+		pid:3556412378 byr:2007`
+			lines := strings.Split(allInvalid, "\n")
+	*/
+	/*
+			allValid := `pid:087499704 hgt:74in ecl:grn iyr:2012 eyr:2030 byr:1980
+		hcl:#623a2f
+
+		eyr:2029 ecl:blu cid:129 byr:1989
+		iyr:2014 pid:896056539 hcl:#a97842 hgt:165cm
+
+		hcl:#888785
+		hgt:164cm byr:2001 iyr:2015 cid:88
+		pid:545766238 ecl:hzl
+		eyr:2022
+
+		iyr:2010 hgt:158cm hcl:#b6652a ecl:blu byr:1944 eyr:2021 pid:093154719`
+			lines := strings.Split(allValid, "\n")
+	*/
+
 	a := aoc.New(4)
 	lines := a.ReadLines()
 	groups := linesToGroups(lines)
 
 	numValid := 0
+	numStrictlyValid := 0
 	for _, g := range groups {
 		record := NewRecord(g)
-		fmt.Printf("R: %s\n", record)
 		if record.HasNeededFields() {
 			numValid++
 		}
+		if record.IsStrictlyValid() {
+			fmt.Printf("R: %s\n", record)
+			numStrictlyValid++
+		}
 	}
 
-	fmt.Printf("total %d numValid: %d\n", len(groups), numValid)
+	fmt.Printf("total %d numValid: %d numStrictlyValid %d\n", len(groups), numValid, numStrictlyValid)
 }
 
 type Record map[string]string
@@ -57,9 +96,16 @@ func NewRecord(group []string) Record {
 }
 
 func (r Record) String() string {
+	var sortedKeys []string
+	for k, _ := range r {
+		sortedKeys = append(sortedKeys, k)
+	}
+	sort.Strings(sortedKeys)
+
 	s := ""
 	first := true
-	for k, v := range r {
+	for _, k := range sortedKeys {
+		v := r[k]
 		if !first {
 			s += " "
 		}
@@ -67,6 +113,116 @@ func (r Record) String() string {
 		first = false
 	}
 	return s
+}
+
+func (r Record) IsStrictlyValid() bool {
+	if !r.HasNeededFields() {
+		return false
+	}
+	err := r.ValidationError()
+	if err != nil {
+		fmt.Printf("r [%s]: %s\n", r, err)
+	}
+	return err == nil
+}
+
+type Validator func(string) error
+
+func validHasDigits(n int) Validator {
+	return func(s string) error {
+		if len(s) != n {
+			return fmt.Errorf("Must have %d digits, has %d", n, len(s))
+		}
+		for i := range s {
+			if s[i] < '0' || s[i] > '9' {
+				return fmt.Errorf("Contains non-digit '%c'", s[i])
+			}
+		}
+		return nil
+	}
+}
+
+func validNumIn(lo, hi int) Validator {
+	return func(s string) error {
+		n, err := strconv.Atoi(s)
+		if err != nil {
+			return fmt.Errorf("Can't parse year [%s] as numeric: %s", s, err)
+		}
+		if n < lo || n > hi {
+			return fmt.Errorf("Num %d out of range [%d,%d]", n, lo, hi)
+		}
+		return nil
+	}
+}
+
+func validHeight(s string) error {
+	if len(s) < 3 {
+		return fmt.Errorf("String too short for height [%s]", s)
+	}
+	sNum := s[:len(s)-2]
+	sUnits := s[len(s)-2:]
+	switch sUnits {
+	case "cm":
+		return validNumIn(150, 193)(sNum)
+	case "in":
+		return validNumIn(59, 76)(sNum)
+	default:
+		return fmt.Errorf("Unknown units [%s]", sUnits)
+	}
+}
+
+func validEyeColour(s string) error {
+	allowedColours := "amb blu brn gry grn hzl oth"
+	if strings.Index(s, " ") >= 0 {
+		return fmt.Errorf("eye colour [%s] contains space", s)
+	}
+	if len(s) != 3 {
+		return fmt.Errorf("eye colour [%s] not 3 chars", s)
+	}
+	if strings.Index(allowedColours, s) < 0 {
+		return fmt.Errorf("eye colour [%s] not in list", s)
+	}
+	return nil
+}
+
+func validColour(s string) error {
+	if len(s) != 7 {
+		return fmt.Errorf("colour not 7 chars: [%s]", s)
+	}
+	if s[0] != '#' {
+		return fmt.Errorf("colour not start with # : [%s]", s)
+	}
+	for i := range s[1:] {
+		c := s[i+1]
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			return fmt.Errorf("colour contains invalid hex [%c] at pos %d [%s]", c, i, s)
+		}
+	}
+	return nil
+}
+
+func (r Record) ValidationError() error {
+	fieldValidator := map[string]Validator{
+		"byr": validNumIn(1920, 2002),
+		"iyr": validNumIn(2010, 2020),
+		"eyr": validNumIn(2020, 2030),
+		"hgt": validHeight,
+		"hcl": validColour,
+		"ecl": validEyeColour,
+		"pid": validHasDigits(9),
+		"cid": func(s string) error { return nil },
+	}
+
+	for k, v := range r {
+		validator, ok := fieldValidator[k]
+		if !ok {
+			return fmt.Errorf("Unknown field: %s", k)
+		}
+		if err := validator(v); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r Record) HasNeededFields() bool {
