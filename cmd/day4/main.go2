@@ -1,0 +1,108 @@
+package main
+
+import (
+	"fmt"
+	"strings"
+
+	"aoc"
+)
+
+func main() {
+
+	/*
+			egData := `ecl:gry pid:860033327 eyr:2020 hcl:#fffffd
+		byr:1937 iyr:2017 cid:147 hgt:183cm
+
+		iyr:2013 ecl:amb cid:350 eyr:2023 pid:028048884
+		hcl:#cfa07d byr:1929
+
+		hcl:#ae17e1 iyr:2013
+		eyr:2024
+		ecl:brn pid:760753108 byr:1931
+		hgt:179cm
+
+		hcl:#cfa07d eyr:2025 pid:166559648
+		iyr:2011 ecl:brn hgt:59in
+		`
+			lines := strings.Split(egData, "\n")
+	*/
+	a := aoc.New(4)
+	lines := a.ReadLines()
+	groups := linesToGroups(lines)
+
+	numValid := 0
+	for _, g := range groups {
+		record := NewRecord(g)
+		fmt.Printf("R: %s\n", record)
+		if record.HasNeededFields() {
+			numValid++
+		}
+	}
+
+	fmt.Printf("total %d numValid: %d\n", len(groups), numValid)
+}
+
+type Record map[string]string
+
+func NewRecord(group []string) Record {
+	record := make(map[string]string)
+	for _, l := range group {
+		bits := strings.Split(l, " ")
+		for _, bit := range bits {
+			fieldBits := strings.SplitN(bit, ":", 2)
+			record[fieldBits[0]] = fieldBits[1]
+		}
+	}
+	return record
+}
+
+func (r Record) String() string {
+	s := ""
+	first := true
+	for k, v := range r {
+		if !first {
+			s += " "
+		}
+		s += fmt.Sprintf("%s=%s", k, v)
+		first = false
+	}
+	return s
+}
+
+func (r Record) HasNeededFields() bool {
+	neededFields := []string{
+		"byr",
+		"iyr",
+		"eyr",
+		"hgt",
+		"hcl",
+		"ecl",
+		"pid",
+		// optional
+		//		"cid",
+	}
+	for _, needed := range neededFields {
+		_, ok := r[needed]
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func linesToGroups(lines []string) [][]string {
+	var groups [][]string
+	var group []string
+	for _, l := range lines {
+		if l == "" {
+			groups = append(groups, group)
+			group = []string{}
+		} else {
+			group = append(group, l)
+		}
+	}
+	if len(group) > 0 {
+		groups = append(groups, group)
+	}
+	return groups
+}
