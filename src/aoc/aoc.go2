@@ -6,6 +6,7 @@ import (
 	"io"
 	"bufio"
 	"strconv"
+	"sort"
 )
 
 type AOC struct {
@@ -58,6 +59,83 @@ func (aoc *AOC) ReadLines() []string {
 	return lines
 }
 
+type Pair[T, U] struct {
+	First T
+	Second U
+}
+
+func (p Pair[T, U]) String() string {
+	return fmt.Sprintf("[%v,%v]", p.First, p.Second)
+}
+
+func Zip[T, U](ts []T, us []U) []Pair[T,U] {
+	if len(ts) != len(us) {
+		panic("Do something more clever here")
+	}
+	var pairs []Pair[T,U]
+	for i := range ts {
+		pairs = append(pairs, Pair[T, U]{ts[i], us[i]})
+	}
+	return pairs
+}
+
+func Filter[T](f func(T) bool, ts []T) []T {
+	var filtered []T
+	for _, t := range ts {
+		if f(t) {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
+}
+
+func Sort[T Ordered](tsArg []T) []T {
+	ts := make([]T, len(tsArg))
+	n := copy(ts, tsArg)
+	if n != len(tsArg) {
+		panic(fmt.Sprintf("LOGIC ERROR - can't copy slice %d != %d", n, len(tsArg)))
+	}
+	sort.Slice(ts, func(i, j int) bool {
+		return ts[i] < ts[j]
+	})
+	return ts
+}
+
+func UniqC[T comparable](ts []T) []int {
+	if len(ts) == 0 {
+		return []int{}
+	}
+	var counts []int
+	current := ts[0]
+	count := 1
+	for _, t := range ts[1:] {
+		if t == current {
+			count++
+		} else {
+			counts = append(counts, count)
+			count = 1
+			current = t
+		}
+	}
+	counts = append(counts, count)
+	return counts
+}
+
+func IntsTo(n int) []int {
+	var is []int
+	for i := 0; i <= n; i++ {
+		is = append(is, i)
+	}
+	return is
+}
+
+func Foldr[T, U](f func(U, T) U, accum U, ts []T) U {
+	for _, t := range ts {
+		accum = f(accum, t)
+	}
+	return accum
+}
+
 func Map[T, U](f func(T) U, ts []T) []U {
 	us := []U{}
 	for _, t := range ts {
@@ -67,7 +145,7 @@ func Map[T, U](f func(T) U, ts []T) []U {
 	return us
 }
 
-func MaxSlice[T Ordered](l []T) T {
+func Max[T Ordered](l []T) T {
 	max := l[0]
 	for _, v := range l[1:] {
 		if v > max {
@@ -75,13 +153,6 @@ func MaxSlice[T Ordered](l []T) T {
 		}
 	}
 	return max
-}
-
-func Max[T Ordered](a, b T) T {
-	if (a > b) {
-		return a
-	}
-	return b
 }
 
 func BinarySearch[T any](l []T, cmp func(i int) int) (int, bool) {

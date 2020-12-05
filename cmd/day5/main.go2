@@ -13,12 +13,26 @@ func main() {
 	a := aoc.New(5)
 	lines := a.ReadLines()
 
-	maxSeatID := aoc.MaxSlice(aoc.Map(findSeat, lines))
+	maxSeatID := aoc.Max(aoc.Map(calcSeatID, lines))
 
-	fmt.Printf("max seatID: %d", maxSeatID)
+	fmt.Printf("max seatID: %d\n", maxSeatID)
+
+	xorInt := func(x, y int) int { return x ^ y }
+	allXOR := aoc.Foldr(xorInt, 0, aoc.Map(calcSeatID, lines))
+
+	//rowID := func(x int) int { return x >> 3 }
+	fmt.Printf("all XOR seatID: %d - %09b\n", allXOR, allXOR)
+	//	fmt.Printf("0-15: %v aX %d\n", aoc.IntsTo(901), aoc.Foldr(xorInt, 0, aoc.IntsTo(901)))
+	// fmt.Printf("UniqC: %v\n", aoc.UniqC([]int{1, 1, 1, 3, 1, 4, 4, 2}))
+	sortedIDs := aoc.Sort(aoc.Map(calcSeatID, lines))
+	seatPairs := aoc.Zip(sortedIDs[:len(sortedIDs)-1], sortedIDs[1:])
+	unadjacentPair := aoc.Filter(func(p aoc.Pair[int,int]) bool { return p.First+1 != p.Second }, seatPairs)
+	fmt.Printf("UP: %s - missing seat %d\n" , unadjacentPair, unadjacentPair[0].First+1)
+	//fmt.Printf("UniqC: %v\n", aoc.UniqC(aoc.Map(rowID, aoc.Sort(aoc.Map(calcSeatID, lines)))))
+	//fmt.Printf("%v\n", aoc.Zip(aoc.IntsTo(10), aoc.IntsTo(10)))
 }
 
-func findSeat(s string) int {
+func calcSeatID(s string) int {
 	// binary encoding:
 	// F is 0, B is 1
 	// L is 0, R is 1
