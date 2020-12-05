@@ -58,6 +58,25 @@ func (aoc *AOC) ReadLines() []string {
 	return lines
 }
 
+func Map[T, U](f func(T) U, ts []T) []U {
+	us := []U{}
+	for _, t := range ts {
+		u := f(t)
+		us = append(us, u)
+	}
+	return us
+}
+
+func MaxSlice[T Ordered](l []T) T {
+	max := l[0]
+	for _, v := range l[1:] {
+		if v > max {
+			max = v
+		}
+	}
+	return max
+}
+
 func Max[T Ordered](a, b T) T {
 	if (a > b) {
 		return a
