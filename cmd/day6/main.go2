@@ -25,23 +25,28 @@ a
 b
 `)
 
-	//	a.UseExampleData(true)
+	//a.UseExampleData(true)
 
 	groups := a.ReadLineGroups()
 	//	fmt.Printf("G %v\n", groups)
 
-	sum := 0
+	anyoneSum := 0
+	everyoneSum := 0
 	for _, g := range groups {
 		var anyoneAnswer Answer
+		var everyoneAnswer Answer = 1<<27 - 1
 		for _, l := range g {
 			a := NewAnswer(l)
 			//			fmt.Printf("L %s A %026b PC %d\n", l, a, a.PopCount())
 			anyoneAnswer |= a
+			everyoneAnswer &= a
 		}
 		// fmt.Printf("G PC: %d\n", anyoneAnswer.PopCount())
-		sum += anyoneAnswer.PopCount()
+		anyoneSum += anyoneAnswer.PopCount()
+		everyoneSum += everyoneAnswer.PopCount()
 	}
-	fmt.Printf("sum is %d\n", sum)
+	fmt.Printf("anyoneAnswer sum is %d\n", anyoneSum)
+	fmt.Printf("everyoneAnswer sum is %d\n", everyoneSum)
 }
 
 type Answer int
