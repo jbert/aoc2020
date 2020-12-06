@@ -1,0 +1,70 @@
+package main
+
+import (
+	"aoc"
+	"fmt"
+)
+
+func main() {
+	a := aoc.New(6)
+	a.SetExampleData(`
+abc
+
+a
+b
+c
+
+ab
+ac
+
+a
+a
+a
+a
+
+b
+`)
+
+	//	a.UseExampleData(true)
+
+	groups := a.ReadLineGroups()
+	//	fmt.Printf("G %v\n", groups)
+
+	sum := 0
+	for _, g := range groups {
+		var anyoneAnswer Answer
+		for _, l := range g {
+			a := NewAnswer(l)
+			//			fmt.Printf("L %s A %026b PC %d\n", l, a, a.PopCount())
+			anyoneAnswer |= a
+		}
+		// fmt.Printf("G PC: %d\n", anyoneAnswer.PopCount())
+		sum += anyoneAnswer.PopCount()
+	}
+	fmt.Printf("sum is %d\n", sum)
+}
+
+type Answer int
+
+func (a Answer) PopCount() int {
+	mask := 1 << 31
+	total := 0
+	for mask > 0 {
+		if mask&int(a) != 0 {
+			total++
+		}
+		mask >>= 1
+	}
+	return total
+}
+
+func NewAnswer(line string) Answer {
+	// Encode Y/N answers as low 26bits of an int
+	// a = bit 0, b = bit
+	answer := 0
+	for i := range line {
+		bit := line[i] - 'a'
+		answer |= 1 << bit
+	}
+	return Answer(answer)
+}
