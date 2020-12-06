@@ -34,6 +34,24 @@ func (aoc *AOC) ReadInts() []int {
 	return nums
 }
 
+func (aoc *AOC) ReadLineGroups() [][]string {
+	lines := aoc.ReadLines()
+	var groups [][]string
+	var group []string
+	for _, l := range lines {
+		if l == "" {
+			groups = append(groups, group)
+			group = []string{}
+		} else {
+			group = append(group, l)
+		}
+	}
+	if len(group) > 0 {
+		groups = append(groups, group)
+	}
+	return groups
+}
+
 func (aoc *AOC) ReadLines() []string {
 	inputPath := fmt.Sprintf("/home/john/dev/jbert/aoc2020/input/%s.txt", aoc.Name())
 	f, err := os.Open(inputPath)

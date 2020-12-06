@@ -62,8 +62,7 @@ func main() {
 	*/
 
 	a := aoc.New(4)
-	lines := a.ReadLines()
-	groups := linesToGroups(lines)
+	groups := a.ReadLineGroups()
 
 	numValid := 0
 	numStrictlyValid := 0
