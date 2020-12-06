@@ -1,8 +1,9 @@
 package aoc
 
 import (
+	"io/ioutil"
+	"bytes"
 	"fmt"
-	"os"
 	"io"
 	"bufio"
 	"strconv"
@@ -11,6 +12,8 @@ import (
 
 type AOC struct {
 	day int
+	exampleData []byte
+	useExampleData bool
 }
 
 func New(day int) *AOC {
@@ -19,6 +22,15 @@ func New(day int) *AOC {
 
 func (aoc *AOC) Name() string {
 	return fmt.Sprintf("day%d", aoc.day)
+}
+
+
+func (aoc *AOC) SetExampleData(exampleData string) {
+	aoc.exampleData = []byte(exampleData)
+}
+
+func (aoc *AOC) UseExampleData(doit bool) {
+	aoc.useExampleData = doit
 }
 
 func (aoc *AOC) ReadInts() []int {
@@ -52,14 +64,23 @@ func (aoc *AOC) ReadLineGroups() [][]string {
 	return groups
 }
 
-func (aoc *AOC) ReadLines() []string {
-	inputPath := fmt.Sprintf("/home/john/dev/jbert/aoc2020/input/%s.txt", aoc.Name())
-	f, err := os.Open(inputPath)
-	if err != nil {
-		panic(fmt.Sprintf("Can't open input file [%s]: %s", inputPath, err))
+func (aoc *AOC) getData() []byte {
+	if aoc.useExampleData {
+		return aoc.exampleData
 	}
-	defer f.Close()
-	b := bufio.NewReader(f)
+
+	inputPath := fmt.Sprintf("/home/john/dev/jbert/aoc2020/input/%s.txt", aoc.Name())
+	buf, err := ioutil.ReadFile(inputPath)
+	if err != nil {
+		panic(fmt.Sprintf("Can't read input file [%s]: %s", inputPath, err))
+	}
+	return buf
+}
+
+func (aoc *AOC) ReadLines() []string {
+	s := aoc.getData()
+	r := bytes.NewReader(s)
+	b := bufio.NewReader(r)
 	lines := []string{}
 	for {
 		line, err := b.ReadString('\n')
@@ -69,7 +90,7 @@ func (aoc *AOC) ReadLines() []string {
 		}
 		if err != nil {
 			if err != io.EOF {
-				panic(fmt.Sprintf("Error reading input file [%s]: %s", inputPath, err))
+				panic(fmt.Sprintf("Error reading input data: %s", err))
 			}
 			break
 		}
