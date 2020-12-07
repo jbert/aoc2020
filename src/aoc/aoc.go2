@@ -1,4 +1,4 @@
-package aoc
+package aoc	// import "github.com/jbert/aoc2020"
 
 import (
 	"io/ioutil"

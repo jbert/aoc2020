@@ -1,0 +1,79 @@
+package graph
+
+import (
+	"fmt"
+
+	"aoc/set"
+)
+
+type Node string
+
+type WEdge struct {
+	To     Node
+	Weight int
+}
+
+type WDAG struct {
+	nodes   set.Set[Node]
+	edges   map[Node]map[Node]int
+	parents map[Node]map[Node]int
+}
+
+func NewWDAG() *WDAG {
+	return &WDAG{
+		nodes: set.New[Node](),
+		edges: make(map[Node]map[Node]int),
+		parents: make(map[Node]map[Node]int),
+	}
+}
+
+
+func (g *WDAG) AddEdge(from Node, edge WEdge) {
+	g.nodes.Insert(from)
+	g.nodes.Insert(edge.To)
+
+	if _, ok := g.edges[from]; !ok {
+		g.edges[from] = make(map[Node]int)
+	}
+	g.edges[from][edge.To] = edge.Weight
+
+	if _, ok := g.parents[edge.To]; !ok {
+		g.parents[edge.To] = make(map[Node]int)
+	}
+	g.parents[edge.To][from] = edge.Weight
+
+}
+
+func (g WDAG) GetChildren(node Node) []WEdge {
+	edgeMap := g.edges[node]
+	var edges []WEdge
+	for to, weight := range edgeMap {
+		edges = append(edges, WEdge{To: to, Weight: weight})
+	}
+	return edges
+}
+
+func (g WDAG) GetParents(node Node) []WEdge {
+	parentMap := g.parents[node]
+	var parentEdges []WEdge
+	for to, weight := range parentMap {
+		parentEdges = append(parentEdges, WEdge{To: to, Weight: weight})
+	}
+	return parentEdges
+}
+
+func (g WDAG) String() string {
+	s := fmt.Sprintf("(%d nodes)\n", g.nodes.Size())
+	s += "---\n"
+	for _, node := range g.nodes.Slice() {
+		s += string(node) + "\n"
+	}
+	s += "---\n"
+	for from, outbound := range g.edges {
+		for to, weight := range outbound {
+			s += fmt.Sprintf("%s -> %s (%d)\n", from, to, weight)
+		}
+	}
+	return s
+}
+

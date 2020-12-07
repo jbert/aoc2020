@@ -1,0 +1,112 @@
+package main
+
+import (
+	"aoc/set"
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"aoc"
+	"aoc/graph"
+)
+
+func main() {
+	a := aoc.New(7)
+	a.SetExampleData(`
+light red bags contain 1 bright white bag, 2 muted yellow bags.
+dark orange bags contain 3 bright white bags, 4 muted yellow bags.
+bright white bags contain 1 shiny gold bag.
+muted yellow bags contain 2 shiny gold bags, 9 faded blue bags.
+shiny gold bags contain 1 dark olive bag, 2 vibrant plum bags.
+dark olive bags contain 3 faded blue bags, 4 dotted black bags.
+vibrant plum bags contain 5 faded blue bags, 6 dotted black bags.
+faded blue bags contain no other bags.
+dotted black bags contain no other bags.
+`)
+
+	//	a.UseExampleData(true)
+
+	lines := a.ReadLines()
+	g := graph.NewWDAG()
+	for _, l := range lines {
+		from, to := parseLine(l)
+		for _, edge := range to {
+			g.AddEdge(from, edge)
+		}
+	}
+	fmt.Printf("Got graph:\n%s\n", g)
+
+	shinyGold := graph.Node("shiny gold")
+
+	// Nodes we are visiting
+	todo := set.New[graph.Node]()
+	// Nodes we have visited
+	done := set.New[graph.Node]()
+	// Nodes which can contain our initial bag
+	canContain := set.New[graph.Node]()
+	// Prime the pump
+	todo.Insert(shinyGold)
+
+	//	fmt.Printf("JB - todo is %s\n", todo)
+	for !todo.Empty() {
+		// Pull one out
+		node := todo.Choose()
+		todo.Delete(node)
+		//		fmt.Printf("JB - Current [%s]: todo [%s]\n", node, todo)
+
+		parents := g.GetParents(node)
+		for _, parent := range parents {
+			canContain.Insert(parent.To)
+			if !done.Contains(parent.To) {
+				todo.Insert(parent.To)
+			}
+		}
+
+		done.Insert(node)
+	}
+	fmt.Printf("Can contain: (%d) %s\n", len(canContain), canContain)
+
+	/*
+		todo.Clear()
+		todo.Insert(shinyGold)
+		findNumChildren := func(n graph.Node) int {
+			children := g.GetChildren(n)
+		}
+		for !todo.Empty() {
+		}
+	*/
+}
+
+func parseLine(line string) (graph.Node, []graph.WEdge) {
+	delim := " bags contain "
+	endFrom := strings.Index(line, delim)
+	if endFrom < 0 {
+		panic(fmt.Sprintf("Can't find endfrom: [%s]", line))
+	}
+	from := line[:endFrom]
+	//	fmt.Printf("Found from [%s]\n", from)
+
+	rest := line[endFrom+len(delim):]
+	edges := []graph.WEdge{}
+	//	fmt.Printf("Rest [%s]\n", rest)
+	if rest != "no other bags." {
+
+		re := regexp.MustCompile("([0-9]+) ([^,.]+) bags?[,.]")
+
+		matches := re.FindAllStringSubmatch(rest, -1)
+		if matches == nil {
+			panic(fmt.Sprintf("can't match regex on: [%s]", line))
+		}
+		//		fmt.Printf("S: %s\n", rest)
+		//		fmt.Printf("Matches: %v\n", matches)
+		for _, match := range matches {
+			numBags, err := strconv.Atoi(match[1])
+			if err != nil {
+				panic(fmt.Sprintf("Invalid number of bags [%s]: %s", match[1], err))
+			}
+			edges = append(edges, graph.WEdge{To: graph.Node(match[2]), Weight: numBags})
+		}
+	}
+	return graph.Node(from), edges
+}

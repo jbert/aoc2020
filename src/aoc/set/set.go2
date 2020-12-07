@@ -1,0 +1,71 @@
+package set
+
+import (
+	"fmt"
+	"strings"
+)
+
+type Set[T comparable] map[T]struct{}
+
+/*
+type Set[T comparable] struct {
+	elements map[T]struct{}
+}
+*/
+
+func New[T comparable]() Set[T] {
+	return Set[T](make(map[T]struct{}))
+}
+
+func (s Set[T]) Insert(v T) {
+	s[v] = struct{}{}
+}
+
+func (s Set[T]) Delete(v T) {
+	delete(s, v)
+}
+
+func (s Set[T]) Clear() {
+	keys := s.Slice()
+	for _, k := range keys {
+		s.Delete(k)
+	}
+}
+
+func (s Set[T]) Contains(v T) bool {
+	_, ok := s[v]
+	return ok
+}
+
+func (s Set[T]) Empty() bool {
+	return len(s) == 0
+}
+
+func (s Set[T]) Size() int {
+	return len(s)
+}
+
+func (s Set[T]) Slice() []T {
+	var ts []T
+	for v, _ := range s {
+		ts = append(ts, v)
+	}
+	return ts
+}
+
+func (s Set[T]) Choose() T {
+	var v T
+	for v, _ = range s {
+		break
+	}
+	return v
+}
+
+func (s Set[T]) String() string {
+	var bits []string
+	for v, _ := range s {
+		bits = append(bits, fmt.Sprintf("%v", v))
+	}
+	return fmt.Sprintf("[%s]", strings.Join(bits, ", "))
+}
+
