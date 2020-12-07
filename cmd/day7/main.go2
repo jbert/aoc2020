@@ -67,15 +67,18 @@ dotted black bags contain no other bags.
 	}
 	fmt.Printf("Can contain: (%d) %s\n", len(canContain), canContain)
 
-	/*
-		todo.Clear()
-		todo.Insert(shinyGold)
-		findNumChildren := func(n graph.Node) int {
-			children := g.GetChildren(n)
-		}
-		for !todo.Empty() {
-		}
-	*/
+	weight := findChildWeight(g, shinyGold)
+	fmt.Printf("Weight is %d\n", weight-1) // -1 since we don't want to count ourselves
+}
+
+func findChildWeight(g *graph.WDAG, n graph.Node) int {
+	weight := 1
+	childEdges := g.GetChildren(n)
+	for _, childEdge := range childEdges {
+		childWeight := findChildWeight(g, childEdge.To)
+		weight += childWeight * childEdge.Weight
+	}
+	return weight
 }
 
 func parseLine(line string) (graph.Node, []graph.WEdge) {
