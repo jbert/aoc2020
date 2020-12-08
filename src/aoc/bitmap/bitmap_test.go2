@@ -1,0 +1,14 @@
+package bitmap
+
+import (
+	"testing"
+)
+
+func TestBitmap(t *testing.T) {
+	b := New(10)
+
+	err := b.Set(10)
+	if err == nil {
+		t.Fatalf("Shouldn't be able to set at size")
+	}
+}
