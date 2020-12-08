@@ -3,6 +3,7 @@ package main
 import (
 	"aoc"
 	"aoc/bitmap"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -27,13 +28,33 @@ acc +6
 	insts := aoc.Map(NewInstruction, lines)
 
 	device := NewDevice(insts)
-	device.Trace = true
+	//	device.Trace = true
 	acc, err := device.RunUntilRepeat()
-	if err != nil {
+	if err != ErrInstructionRepeat {
 		fmt.Printf("Can't run device: %s\n", err)
 		return
 	}
 	fmt.Printf("RUR: %d\n", acc)
+
+FLIP:
+	for i := 0; i < len(insts); i++ {
+		instCopy := make([]Instruction, len(insts))
+		copy(instCopy, insts)
+		switch instCopy[i].op {
+		case "jmp":
+			instCopy[i].op = "nop"
+		case "nop":
+			instCopy[i].op = "jmp"
+		case "acc":
+			continue FLIP
+		}
+		device := NewDevice(instCopy)
+		acc, err := device.RunUntilRepeat()
+		if err == ErrHaltedAtEnd {
+			fmt.Printf("RUH: %d\n", acc)
+			break FLIP
+		}
+	}
 }
 
 type Device struct {
@@ -52,11 +73,20 @@ func NewDevice(insts []Instruction) *Device {
 	}
 }
 
+var ErrHaltedAtEnd error = errors.New("Halted at end")
+var ErrIPOverflow error = errors.New("IP Overflow")
+var ErrInstructionRepeat error = errors.New("Instruction Repeat")
+
 func (d *Device) RunUntilRepeat() (int, error) {
 	for {
 		if seen, _ := d.seen.Get(d.ip); seen {
-			fmt.Printf("JB - already seen %d\n", d.ip)
-			return d.acc, nil
+			return d.acc, ErrInstructionRepeat
+		}
+		if d.ip == len(d.instructions) {
+			return d.acc, ErrHaltedAtEnd
+		}
+		if d.ip > len(d.instructions) {
+			return d.acc, ErrIPOverflow
 		}
 		inst := d.instructions[d.ip]
 		d.seen.Set(d.ip)
