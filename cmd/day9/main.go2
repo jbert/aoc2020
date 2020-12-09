@@ -1,0 +1,112 @@
+package main
+
+import (
+	"aoc"
+	"fmt"
+)
+
+func main() {
+	a := aoc.New(9)
+	a.SetExampleData(`
+35
+20
+15
+25
+47
+40
+62
+55
+65
+95
+102
+117
+150
+182
+127
+219
+299
+277
+309
+576
+`)
+	preambleLen := 25
+
+	//	a.UseExampleData(true)
+	//	preambleLen = 5
+
+	nums := a.ReadInts()
+
+	rs := NewRunningSums(nums[:preambleLen])
+NUMS:
+	for _, a := range nums[preambleLen:] {
+		fmt.Printf("RS: %s\n", rs)
+		if !rs.IsASum(a) {
+			fmt.Printf("%d is not a sum\n", a)
+			break NUMS
+		}
+		rs.RemoveOldestAddend()
+		rs.AddAddend(a)
+	}
+}
+
+type RunningSums struct {
+	addends  []int
+	sumCount map[int]int
+}
+
+func NewRunningSums(preamble []int) *RunningSums {
+	rs := RunningSums{
+		addends:  preamble,
+		sumCount: make(map[int]int),
+	}
+	for i := range preamble {
+		for j := range preamble {
+			rs.addSumCount(preamble[i], preamble[j])
+		}
+	}
+
+	return &rs
+}
+
+func (rs *RunningSums) String() string {
+	return fmt.Sprintf("%v\n%v", rs.addends, rs.sumCount)
+}
+
+func (rs *RunningSums) IsASum(a int) bool {
+	_, ok := rs.sumCount[a]
+	return ok
+}
+
+func (rs *RunningSums) AddAddend(a int) {
+	rs.addends = append(rs.addends, a)
+	for _, b := range rs.addends {
+		rs.addSumCount(a, b)
+	}
+}
+
+func (rs *RunningSums) RemoveOldestAddend() {
+	a := rs.addends[0]
+	for _, b := range rs.addends {
+		sum := a + b
+		count, ok := rs.sumCount[sum]
+		//		fmt.Printf("DEL: %d + %d = %d (Count %d)\n", a, b, sum, count)
+		if !ok {
+			panic(fmt.Sprintf("Removing %d + %d = %c, but count not present", a, b, sum))
+		}
+		count--
+		if count > 0 {
+			//			fmt.Printf("DEL: +ve %d + %d = %d (Count %d)\n", a, b, sum, count)
+			rs.sumCount[sum] = count
+		} else {
+			//			fmt.Printf("DEL: DEL %d + %d = %d (Count %d)\n", a, b, sum, count)
+			delete(rs.sumCount, sum)
+		}
+	}
+	rs.addends = rs.addends[1:]
+}
+
+func (rs *RunningSums) addSumCount(a, b int) {
+	sum := a + b
+	rs.sumCount[sum]++
+	//	fmt.Printf("ASC: %d + %d = %d\n", a, b, sum)
+}
