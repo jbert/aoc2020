@@ -1,0 +1,98 @@
+package aoc
+
+import (
+	"bufio"
+	"bytes"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"strconv"
+	"strings"
+)
+
+func (aoc *AOC) SetExampleData(exampleData string) {
+	exampleData = strings.TrimLeft(exampleData, "\n")
+	aoc.exampleData = []byte(exampleData)
+}
+
+func (aoc *AOC) UseExampleData(doit bool) {
+	aoc.useExampleData = doit
+}
+
+func (aoc *AOC) ReadInt64s() []int64 {
+	lines := aoc.ReadLines()
+	nums := []int64{}
+	for _, l := range lines {
+		num, err := strconv.ParseInt(l, 10, 0)
+		if err != nil {
+			panic(fmt.Sprintf("Can't parse line as number: [%s]: %s", l, err))
+		}
+		nums = append(nums, num)
+	}
+	return nums
+}
+
+func (aoc *AOC) ReadInts() []int {
+	lines := aoc.ReadLines()
+	nums := []int{}
+	for _, l := range lines {
+		num, err := strconv.Atoi(l)
+		if err != nil {
+			panic(fmt.Sprintf("Can't parse line as number: [%s]: %s", l, err))
+		}
+		nums = append(nums, num)
+	}
+	return nums
+}
+
+func (aoc *AOC) ReadLineGroups() [][]string {
+	lines := aoc.ReadLines()
+	var groups [][]string
+	var group []string
+	for _, l := range lines {
+		if l == "" {
+			groups = append(groups, group)
+			group = []string{}
+		} else {
+			group = append(group, l)
+		}
+	}
+	if len(group) > 0 {
+		groups = append(groups, group)
+	}
+	return groups
+}
+
+func (aoc *AOC) getData() []byte {
+	if aoc.useExampleData {
+		return aoc.exampleData
+	}
+
+	inputPath := fmt.Sprintf("/home/john/dev/jbert/aoc2020/input/%s.txt", aoc.Name())
+	buf, err := ioutil.ReadFile(inputPath)
+	if err != nil {
+		panic(fmt.Sprintf("Can't read input file [%s]: %s", inputPath, err))
+	}
+	return buf
+}
+
+func (aoc *AOC) ReadLines() []string {
+	s := aoc.getData()
+	r := bytes.NewReader(s)
+	b := bufio.NewReader(r)
+	lines := []string{}
+	for {
+		line, err := b.ReadString('\n')
+		if line != "" {
+			line = line[:len(line)-1] // Trim newline
+			lines = append(lines, line)
+		}
+		if err != nil {
+			if err != io.EOF {
+				panic(fmt.Sprintf("Error reading input data: %s", err))
+			}
+			break
+		}
+	}
+	return lines
+}

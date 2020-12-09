@@ -31,33 +31,42 @@ func main() {
 `)
 	preambleLen := 25
 
-	//	a.UseExampleData(true)
-	//	preambleLen = 5
+	//a.UseExampleData(true)
+	//preambleLen = 5
 
-	nums := a.ReadInts()
+	nums := a.ReadInt64s()
 
 	rs := NewRunningSums(nums[:preambleLen])
+	var invalidNumber int64 = -1
 NUMS:
 	for _, a := range nums[preambleLen:] {
 		fmt.Printf("RS: %s\n", rs)
 		if !rs.IsASum(a) {
-			fmt.Printf("%d is not a sum\n", a)
+			invalidNumber = a
 			break NUMS
 		}
 		rs.RemoveOldestAddend()
 		rs.AddAddend(a)
 	}
+	fmt.Printf("%d is not a sum\n", invalidNumber)
+
+	contig := aoc.FindContigSum(invalidNumber, nums)
+	fmt.Printf("Contig: sum(%v) = %d\n", contig, invalidNumber)
+	contig = aoc.Sort(contig)
+	lo := contig[0]
+	hi := contig[len(contig)-1]
+	fmt.Printf("Smol + Chonk = %d + %d = %d\n", lo, hi, lo+hi)
 }
 
 type RunningSums struct {
-	addends  []int
-	sumCount map[int]int
+	addends  []int64
+	sumCount map[int64]int
 }
 
-func NewRunningSums(preamble []int) *RunningSums {
+func NewRunningSums(preamble []int64) *RunningSums {
 	rs := RunningSums{
 		addends:  preamble,
-		sumCount: make(map[int]int),
+		sumCount: make(map[int64]int),
 	}
 	for i := range preamble {
 		for j := range preamble {
@@ -72,12 +81,12 @@ func (rs *RunningSums) String() string {
 	return fmt.Sprintf("%v\n%v", rs.addends, rs.sumCount)
 }
 
-func (rs *RunningSums) IsASum(a int) bool {
+func (rs *RunningSums) IsASum(a int64) bool {
 	_, ok := rs.sumCount[a]
 	return ok
 }
 
-func (rs *RunningSums) AddAddend(a int) {
+func (rs *RunningSums) AddAddend(a int64) {
 	rs.addends = append(rs.addends, a)
 	for _, b := range rs.addends {
 		rs.addSumCount(a, b)
@@ -105,7 +114,7 @@ func (rs *RunningSums) RemoveOldestAddend() {
 	rs.addends = rs.addends[1:]
 }
 
-func (rs *RunningSums) addSumCount(a, b int) {
+func (rs *RunningSums) addSumCount(a, b int64) {
 	sum := a + b
 	rs.sumCount[sum]++
 	//	fmt.Printf("ASC: %d + %d = %d\n", a, b, sum)

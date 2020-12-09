@@ -1,0 +1,40 @@
+package aoc
+
+func FindContigSum(a int64, nums []int64) []int64 {
+	// O(N^2) :-/
+	for lo := range nums {
+		var sum int64
+		for hi := lo; hi < len(nums) - 1; hi++ {
+			sum += nums[hi]
+			if sum == a {
+				return nums[lo:hi+1]
+			}
+		}
+	}
+	panic("didn't find it")
+
+}
+
+func BinarySearch[T any](l []T, cmp func(i int) int) (int, bool) {
+	if len(l) < 1 {
+		return 0, false
+	}
+	pivot := len(l) / 2
+	comparison := cmp(pivot)
+	if comparison == 0 {
+		return pivot, true
+	}
+	if len(l) < 2 {
+		return 0, false
+	}
+
+	if comparison < 0 {
+		return BinarySearch(l[:pivot], cmp)
+	} else {
+		i, ok := BinarySearch(l[pivot:], func(i int) int {
+			return cmp(i+pivot)
+		})
+		return i + pivot, ok
+	}
+}
+
