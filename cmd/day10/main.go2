@@ -42,7 +42,7 @@ func main() {
 3
 `)
 
-	// a.UseExampleData(true)
+	//a.UseExampleData(true)
 
 	nums := a.ReadInts()
 
@@ -51,6 +51,8 @@ func main() {
 	fmt.Printf("device %d\n", as.DeviceJoltage())
 	counts := as.Differences()
 	fmt.Printf("1s %d * 3s %d == %d\n", counts[1], counts[3], counts[1]*counts[3])
+	waysTo := as.WaysTo(as.DeviceJoltage())
+	fmt.Printf("%d ways to\n", waysTo)
 }
 
 type Adapters struct {
@@ -81,4 +83,24 @@ func (as *Adapters) Differences() []int {
 		current = j
 	}
 	return counts
+}
+
+func (as *Adapters) WaysTo(j int) int {
+	js := as.joltages
+	js = append([]int{0}, js...)
+	js = append(js, j)
+
+	waysTo := make([]int, len(js))
+	waysTo[0] = 1
+	for i := 0; i < len(js); i++ {
+		for j := i + 1; j < len(js); j++ {
+			d := js[j] - js[i]
+			//			fmt.Printf("i %d j %d d %d\n", i, j, d)
+			//			fmt.Printf("%v\n", waysTo)
+			if d >= 1 && d <= 3 {
+				waysTo[j] += waysTo[i]
+			}
+		}
+	}
+	return waysTo[len(js)-1]
 }
