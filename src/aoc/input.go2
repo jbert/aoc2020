@@ -19,6 +19,23 @@ func (aoc *AOC) UseExampleData(doit bool) {
 	aoc.useExampleData = doit
 }
 
+type PrettyByte byte
+
+func (pb PrettyByte) String() string {
+	return fmt.Sprintf("%c", pb)
+}
+
+func (aoc *AOC) ReadMatrix() *Matrix[PrettyByte] {
+	lines := aoc.ReadLines()
+	height := len(lines)
+	width := len(lines[0])
+	m := NewMatrix[PrettyByte](width, height)
+	for i, l := range lines {
+		m.SetRow(i, []PrettyByte(l))
+	}
+	return m
+}
+
 func (aoc *AOC) ReadInt64s() []int64 {
 	lines := aoc.ReadLines()
 	nums := []int64{}
@@ -83,16 +100,18 @@ func (aoc *AOC) ReadLines() []string {
 	lines := []string{}
 	for {
 		line, err := b.ReadString('\n')
-		if line != "" {
-			line = line[:len(line)-1] // Trim newline
-			lines = append(lines, line)
-		}
 		if err != nil {
 			if err != io.EOF {
 				panic(fmt.Sprintf("Error reading input data: %s", err))
 			}
 			break
 		}
+		// Ignore blank lines
+		if line == "" {
+			continue
+		}
+		line = line[:len(line)-1] // Trim newline
+		lines = append(lines, line)
 	}
 	return lines
 }

@@ -1,0 +1,161 @@
+package main
+
+import (
+	"aoc"
+	"fmt"
+)
+
+func main() {
+	a := aoc.New(11)
+	a.SetExampleData(`
+L.LL.LL.LL
+LLLLLLL.LL
+L.L.L..L..
+LLLL.LL.LL
+L.LL.LL.LL
+L.LLLLL.LL
+..L.L.....
+LLLLLLLLLL
+L.LLLLLL.L
+L.LLLLL.LL
+`)
+
+	//a.UseExampleData(true)
+
+	m := ReadMatrix(a)
+	//	fmt.Printf("Got matrix:\n%s\n", m)
+
+	tick := 0
+	changes := 1
+	for changes > 0 {
+		fmt.Printf("TICK %d\n%s\n", tick, m)
+		changes, m = m.VisitWithNeighbours(tickOne)
+		tick++
+	}
+	fmt.Printf("num occupied when stable: %d\n", m.NumOccupied())
+}
+
+const (
+	Empty    = 'L'
+	Occupied = '#'
+	Floor    = '.'
+)
+
+func ReadMatrix(a *aoc.AOC) *Matrix {
+	lines := a.ReadLines()
+	height := len(lines)
+	width := len(lines[0])
+	m := NewMatrix(width, height)
+	for i, l := range lines {
+		m.SetRow(i, []byte(l))
+	}
+	return m
+}
+
+func tickOne(v byte, neighbours []byte) byte {
+	//	fmt.Printf("TO: v %c ns %v\n", v, string(neighbours))
+	numOccupied := len(aoc.Filter(func(v byte) bool { return v == Occupied }, neighbours))
+	if v == Empty && numOccupied == 0 {
+		return Occupied
+	}
+	if v == Occupied && numOccupied >= 4 {
+		return Empty
+	}
+	return v
+}
+
+type Matrix struct {
+	Width, Height int
+	cells         [][]byte
+}
+
+func NewMatrix(width, height int) *Matrix {
+	m := Matrix{
+		Width:  width,
+		Height: height,
+		cells:  make([][]byte, height),
+	}
+	for j := 0; j < height; j++ {
+		m.cells[j] = make([]byte, width)
+	}
+	return &m
+}
+
+func (m *Matrix) NumOccupied() int {
+	numOccupied := 0
+	for j := range m.cells {
+		for i := range m.cells[0] { // Just for count
+			v := m.Get(i, j)
+			if v == Occupied {
+				numOccupied++
+			}
+		}
+	}
+	return numOccupied
+}
+
+func (m *Matrix) VisitWithNeighbours(f func(v byte, ns []byte) byte) (int, *Matrix) {
+	changes := 0
+	newM := m.Copy()
+	for j := range m.cells {
+		for i := range m.cells[0] { // Just for count
+			v, neighbours := m.GetWithNeighbours(i, j)
+			newV := f(v, neighbours)
+			if newV != v {
+				changes++
+			}
+			newM.Set(i, j, newV)
+		}
+	}
+	return changes, newM
+}
+
+func (m *Matrix) Copy() *Matrix {
+	newM := NewMatrix(m.Width, m.Height)
+	for i, row := range m.cells {
+		newM.SetRow(i, row)
+	}
+	return newM
+}
+
+func (m *Matrix) String() string {
+	s := fmt.Sprintf("(%d,%d)\n", m.Width, m.Height)
+	for _, row := range m.cells {
+		s += fmt.Sprintf("%s\n", string(row))
+	}
+	return s
+}
+
+func (m *Matrix) SetRow(j int, row []byte) {
+	copy(m.cells[j], row)
+}
+
+func (m *Matrix) Set(i, j int, v byte) {
+	m.cells[j][i] = v
+}
+
+func (m *Matrix) Get(i, j int) byte {
+	return m.cells[j][i]
+}
+
+func (m *Matrix) InBounds(i, j int) bool {
+	return j >= 0 && j < m.Height && i >= 0 && i < m.Width
+}
+
+func (m *Matrix) GetWithNeighbours(i, j int) (byte, []byte) {
+	v := m.cells[j][i]
+	var ns []byte
+	for dj := -1; dj <= 1; dj++ {
+		for di := -1; di <= 1; di++ {
+			if di == 0 && dj == 0 {
+				continue
+			}
+			ni := i + di
+			nj := j + dj
+			if m.InBounds(ni, nj) {
+				ns = append(ns, m.Get(ni, nj))
+			}
+		}
+	}
+	return v, ns
+}

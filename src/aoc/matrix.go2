@@ -1,0 +1,85 @@
+package aoc
+
+import (
+	"fmt"
+)
+
+type Matrix[T fmt.Stringer] struct {
+	Width, Height int
+	cells [][]T
+}
+
+func NewMatrix[T fmt.Stringer](width, height int) *Matrix[T] {
+	m := Matrix[T]{
+		Width: width,
+		Height: height,
+		cells: make([][]T, height),
+	}
+	for j := 0; j < height; j++ {
+		m.cells[j] = make([]T, width)
+	}
+	return &m
+}
+
+func (m *Matrix[T]) VisitWithNeighbours(f func(v T, ns[]T) T) *Matrix[T] {
+	newM := m.Copy()
+	for j := range m.cells {
+		for i := range m.cells[0] {	// Just for count
+			v, neighbours := m.GetWithNeighbours(i, j)
+			newV := f(v, neighbours)
+			newM.Set(i,j, newV)
+		}
+	}
+	return newM
+}
+
+
+func (m *Matrix[T]) Copy() *Matrix[T] {
+	newM := NewMatrix[T](m.Width, m.Height)
+	for i, row := range m.cells {
+		newM.SetRow(i, row)
+	}
+	return newM
+}
+
+func (m *Matrix[T]) String() string {
+	s := fmt.Sprintf("(%d,%d)\n", m.Width, m.Height)
+	for _, row := range m.cells {
+		s += fmt.Sprintf("%v\n", row)
+	}
+	return s
+}
+
+func (m *Matrix[T]) SetRow(j int, row []T) {
+	m.cells[j] = row
+}
+
+func (m *Matrix[T]) Set(i, j int, v T) {
+	m.cells[j][i] = v
+}
+
+func (m *Matrix[T]) Get(i, j int) T {
+	return m.cells[j][i]
+}
+
+func (m *Matrix[T]) InBounds(i, j int) bool {
+	return j >= 0 && j < m.Height && i >= 0 && i < m.Width
+}
+
+func (m *Matrix[T]) GetWithNeighbours(i, j int) (T, []T) {
+	v := m.cells[j][i]
+	var ns []T
+	for dj := -1; dj <= 1; dj++ {
+		for di := -1; di <= 1; di++ {
+			if di == 0 && dj == 0 {
+				continue
+			}
+			ni := i+di
+			nj := j+dj
+			if m.InBounds(ni, nj) {
+				ns = append(ns, m.Get(ni, nj))
+			}
+		}
+	}
+	return v, ns
+}
