@@ -23,16 +23,34 @@ L.LLLLL.LL
 	//a.UseExampleData(true)
 
 	m := ReadMatrix(a)
+	mCopy := m.Copy()
 	//	fmt.Printf("Got matrix:\n%s\n", m)
 
 	tick := 0
 	changes := 1
 	for changes > 0 {
 		fmt.Printf("TICK %d\n%s\n", tick, m)
-		changes, m = m.VisitWithNeighbours(tickOne)
+		changes, m = m.VisitWithNeighbours(
+			func(v byte, ns []byte) byte { return decideOne(v, ns, 4) },
+			func(i, j int) (byte, []byte) { return m.GetWithNeighbours(i, j) },
+		)
 		tick++
 	}
 	fmt.Printf("num occupied when stable: %d\n", m.NumOccupied())
+
+	tick = 0
+	changes = 1
+	m = mCopy.Copy()
+	for changes > 0 {
+		fmt.Printf("TICK %d\n%s\n", tick, m)
+		changes, m = m.VisitWithNeighbours(
+			func(v byte, ns []byte) byte { return decideOne(v, ns, 5) },
+			func(i, j int) (byte, []byte) { return m.GetWithViewable(i, j) },
+		)
+		tick++
+	}
+	fmt.Printf("num occupied when stable: %d\n", m.NumOccupied())
+
 }
 
 const (
@@ -52,13 +70,13 @@ func ReadMatrix(a *aoc.AOC) *Matrix {
 	return m
 }
 
-func tickOne(v byte, neighbours []byte) byte {
+func decideOne(v byte, neighbours []byte, limit int) byte {
 	//	fmt.Printf("TO: v %c ns %v\n", v, string(neighbours))
 	numOccupied := len(aoc.Filter(func(v byte) bool { return v == Occupied }, neighbours))
 	if v == Empty && numOccupied == 0 {
 		return Occupied
 	}
-	if v == Occupied && numOccupied >= 4 {
+	if v == Occupied && numOccupied >= limit {
 		return Empty
 	}
 	return v
@@ -94,12 +112,15 @@ func (m *Matrix) NumOccupied() int {
 	return numOccupied
 }
 
-func (m *Matrix) VisitWithNeighbours(f func(v byte, ns []byte) byte) (int, *Matrix) {
+func (m *Matrix) VisitWithNeighbours(
+	f func(v byte, ns []byte) byte,
+	findNeighbours func(i, j int) (byte, []byte),
+) (int, *Matrix) {
 	changes := 0
 	newM := m.Copy()
 	for j := range m.cells {
 		for i := range m.cells[0] { // Just for count
-			v, neighbours := m.GetWithNeighbours(i, j)
+			v, neighbours := findNeighbours(i, j)
 			newV := f(v, neighbours)
 			if newV != v {
 				changes++
@@ -154,6 +175,32 @@ func (m *Matrix) GetWithNeighbours(i, j int) (byte, []byte) {
 			nj := j + dj
 			if m.InBounds(ni, nj) {
 				ns = append(ns, m.Get(ni, nj))
+			}
+		}
+	}
+	return v, ns
+}
+
+func (m *Matrix) GetWithViewable(i, j int) (byte, []byte) {
+	v := m.cells[j][i]
+	var ns []byte
+	for dj := -1; dj <= 1; dj++ {
+		for di := -1; di <= 1; di++ {
+			if di == 0 && dj == 0 {
+				continue
+			}
+		STEP:
+			for step := 1; step < 100000; step++ {
+				ni := i + step*di
+				nj := j + step*dj
+				if !m.InBounds(ni, nj) {
+					break STEP
+				}
+				v := m.Get(ni, nj)
+				if v != Floor {
+					ns = append(ns, v)
+					break STEP
+				}
 			}
 		}
 	}
