@@ -28,3 +28,48 @@ func (p Pos[T]) Add(q Pos[T]) Pos[T] {
 func (p Pos[T]) Equals(q Pos[T]) bool {
 	return p.X == q.X && p.Y == q.Y
 }
+
+func (p Pos[T]) Scale(a T) Pos[T] {
+	return Pos[T]{X: a * p.X, Y: a * p.Y}
+}
+
+
+type IPos struct {
+	X, Y int
+}
+
+func (p IPos) String() string {
+	numFormat := "%d"
+	switch (interface{})(p.X).(type) {
+	case float64:
+		numFormat = "%f"
+	case float32:
+		numFormat = "%f"
+	}
+	format := fmt.Sprintf("[%s, %s]", numFormat, numFormat)
+
+	return fmt.Sprintf(format, p.X, p.Y)
+}
+
+func (p IPos) Add(q IPos) IPos {
+	return IPos{X: p.X + q.X, Y: p.Y + q.Y}
+}
+
+func (p IPos) Equals(q IPos) bool {
+	return p.X == q.X && p.Y == q.Y
+}
+
+func (p IPos) Scale(a int) IPos {
+	return IPos{X: a * p.X, Y: a * p.Y}
+}
+
+func IAbs(a int) int {
+	if a < 0 {
+		return -a
+	}
+	return a
+}
+
+func (p IPos) Manhattan() int {
+	return IAbs(p.X) + IAbs(p.Y)
+}

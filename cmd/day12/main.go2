@@ -1,0 +1,98 @@
+package main
+
+import (
+	"aoc"
+	"fmt"
+	"strconv"
+)
+
+func main() {
+	a := aoc.New(12)
+	a.SetExampleData(`
+F10
+N3
+F7
+R90
+F11
+`)
+	//a.UseExampleData(true)
+
+	lines := a.ReadLines()
+	insts := aoc.Map(NewInstruction, lines)
+	s := NewShip()
+	for _, inst := range insts {
+		s.Apply(inst)
+	}
+	fmt.Printf("ship has moved %d\n", s.loc.Manhattan())
+}
+
+type Ship struct {
+	loc aoc.IPos
+	dir aoc.Direction
+}
+
+type Instruction struct {
+	dir    byte
+	amount int
+}
+
+func NewInstruction(s string) Instruction {
+	byteDir := s[0]
+	amount, err := strconv.Atoi(s[1:])
+	if err != nil {
+		panic(fmt.Sprintf("Can't parse inst: %s", s))
+	}
+	return Instruction{
+		dir:    byteDir,
+		amount: amount,
+	}
+}
+
+func (inst Instruction) String() string {
+	return fmt.Sprintf("%c:%d", inst.dir, inst.amount)
+}
+
+func NewShip() *Ship {
+	return &Ship{
+		loc: aoc.IPos{0, 0},
+		dir: aoc.East,
+	}
+}
+
+func (ship Ship) String() string {
+	return fmt.Sprintf("%s:%s", ship.dir, ship.loc)
+}
+
+func (ship *Ship) Move(vec aoc.IPos) {
+	old := ship.String()
+	ship.loc = ship.loc.Add(vec)
+	fmt.Printf("%s move %s to %s\n", old, vec, ship)
+}
+
+func (ship *Ship) Turn(angleDir byte, amount int) {
+	old := ship.String()
+	turns := amount / 90
+	for turns > 0 {
+		ship.dir = ship.dir.Turn(angleDir)
+		turns--
+	}
+	fmt.Printf("%s turn %c to %s\n", old, angleDir, ship.dir)
+}
+
+func (ship *Ship) Apply(inst Instruction) {
+	fmt.Printf("i %s\n", inst)
+	if aoc.IsCompassDir(inst.dir) {
+		vec := aoc.NewDirection(inst.dir).ToIPos().Scale(inst.amount)
+		ship.Move(vec)
+		return
+	}
+	switch inst.dir {
+	case 'F':
+		vec := ship.dir.ToIPos().Scale(inst.amount)
+		ship.Move(vec)
+	case 'L', 'R':
+		ship.Turn(inst.dir, inst.amount)
+	default:
+		panic(fmt.Sprintf("wtf? %c", inst.dir))
+	}
+}

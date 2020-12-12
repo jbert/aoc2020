@@ -1,0 +1,97 @@
+package aoc
+
+import (
+	"fmt"
+	"bytes"
+)
+
+type Direction byte
+
+const (
+	North Direction = 'N'
+	East = 'E'
+	South = 'S'
+	West = 'W'
+)
+
+func NewDirection(compassDir byte) Direction {
+	if !IsCompassDir(compassDir) {
+		panic(fmt.Sprintf("bad compass dir %c", compassDir))
+	}
+	return Direction(compassDir)
+}
+
+func (d Direction) ToPos() Pos[int] {
+	x := 0
+	y := 0
+	switch d {
+	case North:
+		y = 1
+	case East:
+		x = 1
+	case South:
+		y = -1
+	case West:
+		x = -1
+	}
+	return Pos[int]{x, y}
+}
+
+func (d Direction) String() string {
+	return fmt.Sprintf("%c", d)
+}
+
+func (d Direction) ToIPos() IPos {
+	x := 0
+	y := 0
+	switch d {
+	case North:
+		y = 1
+	case East:
+		x = 1
+	case South:
+		y = -1
+	case West:
+		x = -1
+	}
+	return IPos{x, y}
+}
+
+func IsCompassDir(c byte) bool {
+	compassDirs := []byte("NESW")
+	i := bytes.Index(compassDirs, []byte{c})
+	return i >= 0
+}
+
+func (d Direction) Turn(angleDir byte) Direction {
+	switch angleDir {
+	case 'L':
+		switch d {
+		case North:
+			return West
+		case East:
+			return North
+		case South:
+			return East
+		case West:
+			return South
+		default:
+			panic(fmt.Sprintf("impossible direction: %s", d))
+		}
+	case 'R':
+		switch d{
+		case North:
+			return East
+		case East:
+			return South
+		case South:
+			return West
+		case West:
+			return North
+		default:
+			panic(fmt.Sprintf("impossible direction: %s", d))
+		}
+	default:
+		panic(fmt.Sprintf("bad angle dir %c", angleDir))
+	}
+}
