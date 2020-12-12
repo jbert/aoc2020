@@ -24,11 +24,18 @@ F11
 		s.Apply(inst)
 	}
 	fmt.Printf("ship has moved %d\n", s.loc.Manhattan())
+
+	s = NewShip()
+	for _, inst := range insts {
+		s.ApplyWaypoint(inst)
+	}
+	fmt.Printf("ship has moved %d\n", s.loc.Manhattan())
 }
 
 type Ship struct {
-	loc aoc.IPos
-	dir aoc.Direction
+	loc      aoc.IPos
+	dir      aoc.Direction
+	waypoint aoc.IPos
 }
 
 type Instruction struct {
@@ -54,13 +61,34 @@ func (inst Instruction) String() string {
 
 func NewShip() *Ship {
 	return &Ship{
-		loc: aoc.IPos{0, 0},
-		dir: aoc.East,
+		loc:      aoc.IPos{0, 0},
+		dir:      aoc.East,
+		waypoint: aoc.IPos{10, 1},
 	}
 }
 
 func (ship Ship) String() string {
-	return fmt.Sprintf("%s:%s", ship.dir, ship.loc)
+	return fmt.Sprintf("%s:%s (%s)", ship.dir, ship.loc, ship.waypoint)
+}
+
+func (ship *Ship) MoveWaypoint(vec aoc.IPos) {
+	old := ship.String()
+	ship.waypoint = ship.waypoint.Add(vec)
+	fmt.Printf("%s move %s to %s\n", old, vec, ship)
+}
+
+func (ship *Ship) TurnWaypoint(angleDir byte, amount int) {
+	old := ship.String()
+	turns := amount / 90
+	for turns > 0 {
+		if angleDir == 'L' {
+			ship.waypoint = ship.waypoint.TurnLeft()
+		} else if angleDir == 'R' {
+			ship.waypoint = ship.waypoint.TurnRight()
+		}
+		turns--
+	}
+	fmt.Printf("%s turn %c to %s\n", old, angleDir, ship.dir)
 }
 
 func (ship *Ship) Move(vec aoc.IPos) {
@@ -77,6 +105,27 @@ func (ship *Ship) Turn(angleDir byte, amount int) {
 		turns--
 	}
 	fmt.Printf("%s turn %c to %s\n", old, angleDir, ship.dir)
+}
+
+func (ship *Ship) ApplyWaypoint(inst Instruction) {
+	fmt.Printf("i %s\n", inst)
+	if aoc.IsCompassDir(inst.dir) {
+		vec := aoc.NewDirection(inst.dir).ToIPos().Scale(inst.amount)
+		ship.MoveWaypoint(vec)
+		return
+	}
+	switch inst.dir {
+	case 'F':
+		turns := inst.amount
+		for turns > 0 {
+			ship.Move(ship.waypoint)
+			turns--
+		}
+	case 'L', 'R':
+		ship.TurnWaypoint(inst.dir, inst.amount)
+	default:
+		panic(fmt.Sprintf("wtf? %c", inst.dir))
+	}
 }
 
 func (ship *Ship) Apply(inst Instruction) {

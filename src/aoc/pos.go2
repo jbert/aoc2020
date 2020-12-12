@@ -63,6 +63,14 @@ func (p IPos) Scale(a int) IPos {
 	return IPos{X: a * p.X, Y: a * p.Y}
 }
 
+func (p IPos) TurnLeft() IPos {
+	return IPos{X: -p.Y, Y: p.X}
+}
+
+func (p IPos) TurnRight() IPos {
+	return IPos{X: p.Y, Y: -p.X}
+}
+
 func IAbs(a int) int {
 	if a < 0 {
 		return -a
