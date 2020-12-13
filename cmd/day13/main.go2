@@ -1,0 +1,38 @@
+package main
+
+import (
+	"aoc"
+	"fmt"
+	"log"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	a := aoc.New(13)
+	a.SetExampleData(`
+939
+7,13,x,x,59,x,31,19
+`)
+	//a.UseExampleData(true)
+
+	lines := a.ReadLines()
+	now := MustAtoi(lines[0])
+	busIDs := aoc.Map(MustAtoi, aoc.Filter(func(s string) bool { return s != "x" }, strings.Split(lines[1], ",")))
+	minTimeToWait := busIDs[0]
+	for _, busID := range busIDs {
+		timeToWait := busID - now%busID
+		if timeToWait < minTimeToWait {
+			fmt.Printf("Min %d id %d ttw %d prod %d\n", minTimeToWait, busID, timeToWait, busID*timeToWait)
+			minTimeToWait = timeToWait
+		}
+	}
+}
+
+func MustAtoi(s string) int {
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		log.Fatalf("Can't parse [%s] as num: %s", s, err)
+	}
+	return n
+}
