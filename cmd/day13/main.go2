@@ -4,6 +4,7 @@ import (
 	"aoc"
 	"fmt"
 	"log"
+	"math/big"
 	"strconv"
 	"strings"
 )
@@ -27,6 +28,68 @@ func main() {
 			minTimeToWait = timeToWait
 		}
 	}
+
+	var constraints []Constraint
+	N := int64(1)
+	for i, l := range strings.Split(lines[1], ",") {
+		busID := AtoiOrZero(l)
+		if busID != 0 {
+			constraints = append(constraints, Constraint{BusID: int64(busID), Index: int64(i)})
+			N *= int64(busID)
+		}
+	}
+
+	fmt.Printf("prod %d constraints %v\n", N, constraints)
+
+	// Chinese Remainder Theorem
+	// https://en.wikipedia.org/wiki/Chinese_remainder_theorem#Existence_(direct_construction)
+	sum := int64(0)
+	for i, c := range constraints[1:] {
+		ni := c.BusID
+		ai := c.Index
+
+		Ni := N / ni
+		fmt.Printf("i %d: N %d ni %d ai %d Ni %d\n", i, N, ni, ai, Ni)
+		Mi, mi := Bezout(Ni, ni)
+		check := Mi*Ni + mi*ni
+		if check != 1 {
+			log.Fatalf("Wrong bezout coeffs: %d * %d + %d * %d = %d", Mi, Ni, mi, ni, check)
+		}
+		sum += ai * Mi * Ni
+	}
+	sum = -sum // Not sure why!
+	sum %= N
+	if sum < 0 {
+		sum += N
+	}
+	for i, c := range constraints {
+		fmt.Printf("%d: %d %% %d = %d\n", i, sum, c.BusID, sum%c.BusID)
+	}
+	fmt.Printf("sum: %d\n", sum)
+}
+
+// Return a, b s.t. a.x + b.y = 1
+func Bezout(a, b int64) (int64, int64) {
+	gcd := big.NewInt(0)
+	A := big.NewInt(a)
+	B := big.NewInt(b)
+	X := big.NewInt(0)
+	Y := big.NewInt(0)
+	gcd.GCD(X, Y, A, B)
+	return X.Int64(), Y.Int64()
+}
+
+type Constraint struct {
+	BusID int64
+	Index int64
+}
+
+func AtoiOrZero(s string) int {
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 func MustAtoi(s string) int {

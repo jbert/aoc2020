@@ -67,6 +67,14 @@ func UniqC[T comparable](ts []T) []int {
 	return counts
 }
 
+func IntsFromTo(from, to int) []int {
+	var is []int
+	for i := from; i <= to; i++ {
+		is = append(is, i)
+	}
+	return is
+}
+
 func IntsTo(n int) []int {
 	var is []int
 	for i := 0; i <= n; i++ {
