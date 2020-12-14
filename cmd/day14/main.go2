@@ -1,0 +1,201 @@
+package main
+
+import (
+	"aoc"
+	"fmt"
+	"log"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	a := aoc.New(14)
+	a.SetExampleData(`
+mask = XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X
+mem[8] = 11
+mem[7] = 101
+mem[8] = 0
+`)
+	// a.UseExampleData(true)
+
+	maskTestCases := []string{`
+value:  000000000000000000000000000000001011  (decimal 11)
+mask:   XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X
+result: 000000000000000000000000000001001001  (decimal 73)
+`, `
+value:  000000000000000000000000000001100101  (decimal 101)
+mask:   XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X
+result: 000000000000000000000000000001100101  (decimal 101)
+`, `
+value:  000000000000000000000000000000000000  (decimal 0)
+mask:   XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X
+result: 000000000000000000000000000001000000  (decimal 64)
+`}
+	err := runTestCases(maskTestCases)
+	if err != nil {
+		log.Fatalf("Test cases failed: %s", err)
+	}
+
+	sys := NewSystem()
+	lines := a.ReadLines()
+	for _, line := range lines {
+		//		fmt.Printf("%s\n", sys)
+		//		fmt.Printf("%s\n", line)
+		err := sys.Execute(line)
+		if err != nil {
+			log.Fatalf("Can't execute line [%s]: %s", line, err)
+		}
+	}
+	fmt.Printf("mem sum %d\n", sys.MemorySum())
+}
+
+func runTestCases(tcs []string) error {
+	for _, tc := range tcs {
+		tc = strings.TrimLeft(tc, "\n")
+		tc = strings.TrimRight(tc, "\n")
+
+		bits := strings.Split(tc, "\n")
+		valueStr := bits[0][8:44]
+		maskStr := bits[1][8:44]
+		resultStr := bits[2][8:44]
+		//		fmt.Printf("JB:\n%s\n%s\n", maskStr, bits[1])
+
+		valueI, err := strconv.ParseInt(valueStr, 2, 0)
+		if err != nil {
+			return fmt.Errorf("Can't parse value [%s]: %s", valueStr, err)
+		}
+		value := uint64(valueI)
+
+		expectedI, err := strconv.ParseInt(resultStr, 2, 0)
+		if err != nil {
+			return fmt.Errorf("Can't parse result [%s]: %s", resultStr, err)
+		}
+		expected := uint64(expectedI)
+
+		//		fmt.Printf("V: %036b\nM: %s\nE: %036b\n", value, maskStr, expected)
+
+		m := NewMask(maskStr)
+		got := m.Apply(value)
+		if expected != got {
+			return fmt.Errorf("TC failed got\n%036b\nexpected\n%036b\nmask\n%s\n\n%s\n", got, expected, m, tc)
+		}
+	}
+	fmt.Printf("%d tests passed OK\n", len(tcs))
+	return nil
+}
+
+type Mask struct {
+	orMask  uint64
+	andMask uint64
+}
+
+func NewMask(s string) *Mask {
+	m := &Mask{}
+	bits := strings.Split(s, "")
+	mask := uint64(1) << 35
+	for i := range bits {
+		switch bits[i] {
+		case "1":
+			//			fmt.Printf("Setting bit %d\n", 35-i)
+			m.orMask |= mask
+		case "0":
+			//			fmt.Printf("Clearing bit %d\n", 35-i)
+			m.andMask &= ^mask
+		case "X":
+			m.andMask |= mask
+			m.orMask &= ^mask
+		}
+		mask >>= 1
+	}
+	fmt.Printf("%s\n%s\n\n", s, m)
+	return m
+}
+
+func NewEmptyMask() *Mask {
+	m := Mask{}
+	m.andMask = ^uint64(0)
+	return &m
+}
+
+func (m *Mask) Apply(value uint64) uint64 {
+	value &= m.andMask
+	value |= m.orMask
+	return value
+}
+
+func (m *Mask) String() string {
+	// 36 = 4 * 9
+	threeSixMask := uint64(0xfffffffff)
+	return fmt.Sprintf("%036b OR\n%036b AND", m.orMask, m.andMask&threeSixMask)
+}
+
+type System struct {
+	mask *Mask
+	mem  []uint64
+}
+
+func NewSystem() *System {
+	sys := System{}
+	sys.mask = NewEmptyMask()
+	sys.mem = []uint64{}
+	return &sys
+}
+
+func (sys *System) String() string {
+	return sys.mask.String()
+}
+
+func (sys *System) Execute(s string) error {
+	bits := strings.Split(s, " = ")
+	if len(bits) != 2 {
+		return fmt.Errorf("Can't find two bits")
+	}
+	if bits[0] == "mask" {
+		sys.mask = NewMask(bits[1])
+		return nil
+	}
+	if !strings.HasPrefix(bits[0], "mem[") {
+		return fmt.Errorf("Can't find mem[ prefix")
+	}
+	end := strings.Index(bits[0][4:], "]")
+	if end < 0 {
+		return fmt.Errorf("Can't find right bracket: %s", bits[0][4:])
+	}
+	addr, err := strconv.ParseInt(bits[0][4:4+end], 10, 0)
+	if err != nil {
+		return fmt.Errorf("Can't parse mem addr: %s", bits[0][4:])
+	}
+	v, err := strconv.ParseInt(bits[1], 10, 0)
+	if err != nil {
+		return fmt.Errorf("Can't parse value : %s", bits[1])
+	}
+	sys.WriteMem(uint64(addr), uint64(v))
+	return nil
+}
+
+func (sys *System) WriteMem(addr, value uint64) {
+	sumBefore := sys.MemorySum()
+	if addr > uint64(len(sys.mem)) {
+		fmt.Printf("JB - grow from %d to %d\n", len(sys.mem), addr+1)
+		newMem := make([]uint64, addr+1)
+		copy(newMem, sys.mem)
+		sys.mem = newMem
+	}
+	sumAfter := sys.MemorySum()
+	if sumBefore != sumAfter {
+		log.Fatalf("Error extending memory %d != %d", sumBefore, sumAfter)
+	}
+
+	fmt.Printf("%036b RAW\n", value)
+	value = sys.mask.Apply(value)
+	fmt.Printf("%036b -> %d\n", value, addr)
+	sys.mem[addr] = value
+}
+
+func (sys *System) MemorySum() uint64 {
+	var sum uint64
+	for _, v := range sys.mem {
+		sum += v
+	}
+	return sum
+}
