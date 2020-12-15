@@ -18,10 +18,13 @@ func main() {
 	e := NewElves(nums)
 	for {
 		turn := e.NextTurn()
-		if turn.Turn > 2020 {
+		if turn.Turn%100000 == 0 {
+			fmt.Printf("%s\n", turn)
+		}
+		if turn.Turn > 30000000 {
+			fmt.Printf("%s\n", turn)
 			break
 		}
-		fmt.Printf("%s\n", turn)
 	}
 }
 
