@@ -6,6 +6,8 @@ import (
 	"log"
 	"strconv"
 	"strings"
+
+	"aoc/set"
 )
 
 func main() {
@@ -36,8 +38,20 @@ result: 000000000000000000000000000001000000  (decimal 64)
 		log.Fatalf("Test cases failed: %s", err)
 	}
 
-	sys := NewSystem()
+	sys := NewSystem(false)
 	lines := a.ReadLines()
+	for _, line := range lines {
+		//		fmt.Printf("%s\n", sys)
+		//		fmt.Printf("%s\n", line)
+		err := sys.Execute(line)
+		if err != nil {
+			log.Fatalf("Can't execute line [%s]: %s", line, err)
+		}
+	}
+	fmt.Printf("mem sum %d\n", sys.MemorySum())
+
+	sys = NewSystem(true)
+	lines = a.ReadLines()
 	for _, line := range lines {
 		//		fmt.Printf("%s\n", sys)
 		//		fmt.Printf("%s\n", line)
@@ -107,7 +121,7 @@ func NewMask(s string) *Mask {
 		}
 		mask >>= 1
 	}
-	fmt.Printf("%s\n%s\n\n", s, m)
+	//	fmt.Printf("%s\n%s\n\n", s, m)
 	return m
 }
 
@@ -123,6 +137,41 @@ func (m *Mask) Apply(value uint64) uint64 {
 	return value
 }
 
+func (m *Mask) ApplyB(value uint64) []uint64 {
+	// orMask == 0 && andMask == 0 <=> original string had 0
+	// orMask == 1 && andMask == 0 <=> original string had 1
+	// orMask == 0 && andMask == 1 <=> original string had X
+	// orMask == 1 && andMask == 1 <=> unused
+
+	// So orMask & ^andMask => bits we want to force 1
+	// We want all original 1, so or == 1 && and == 0
+	overwriteMask := m.orMask & ^m.andMask
+	value = value | overwriteMask
+
+	// All Xs are or == 0 && and == 1
+	xMask := m.andMask & ^m.orMask
+	// And we produce all combinations of Xs
+	values := set.New[uint64]()
+	values.Insert(value)
+
+	//	fmt.Printf("XMask: %036b\n", xMask)
+	mask := uint64(1) << 36
+	for mask > 0 {
+		mask >>= 1
+		//		fmt.Printf("Mask: %036b size %d\n", mask, values.Size())
+		if xMask&mask == 0 {
+			//			fmt.Printf("Skip")
+			continue
+		}
+		values0 := aoc.Map(func(v uint64) uint64 { return v & ^mask }, values.Slice())
+		values1 := aoc.Map(func(v uint64) uint64 { return v | mask }, values.Slice())
+		values.InsertSlice(values0)
+		values.InsertSlice(values1)
+	}
+
+	return values.Slice()
+}
+
 func (m *Mask) String() string {
 	// 36 = 4 * 9
 	threeSixMask := uint64(0xfffffffff)
@@ -130,14 +179,16 @@ func (m *Mask) String() string {
 }
 
 type System struct {
-	mask *Mask
-	mem  []uint64
+	mask  *Mask
+	mem   map[uint64]uint64
+	partB bool
 }
 
-func NewSystem() *System {
+func NewSystem(partB bool) *System {
 	sys := System{}
 	sys.mask = NewEmptyMask()
-	sys.mem = []uint64{}
+	sys.mem = make(map[uint64]uint64)
+	sys.partB = partB
 	return &sys
 }
 
@@ -174,21 +225,22 @@ func (sys *System) Execute(s string) error {
 }
 
 func (sys *System) WriteMem(addr, value uint64) {
-	sumBefore := sys.MemorySum()
-	if addr > uint64(len(sys.mem)) {
-		fmt.Printf("JB - grow from %d to %d\n", len(sys.mem), addr+1)
-		newMem := make([]uint64, addr+1)
-		copy(newMem, sys.mem)
-		sys.mem = newMem
+	if sys.partB {
+		sys.WriteMemB(addr, value)
+	} else {
+		sys.WriteMemA(addr, value)
 	}
-	sumAfter := sys.MemorySum()
-	if sumBefore != sumAfter {
-		log.Fatalf("Error extending memory %d != %d", sumBefore, sumAfter)
-	}
+}
 
-	fmt.Printf("%036b RAW\n", value)
+func (sys *System) WriteMemB(addr, value uint64) {
+	addrs := sys.mask.ApplyB(addr)
+	for _, addr := range addrs {
+		sys.mem[addr] = value
+	}
+}
+
+func (sys *System) WriteMemA(addr, value uint64) {
 	value = sys.mask.Apply(value)
-	fmt.Printf("%036b -> %d\n", value, addr)
 	sys.mem[addr] = value
 }
 
