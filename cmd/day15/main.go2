@@ -1,0 +1,89 @@
+package main
+
+import (
+	"aoc"
+	"fmt"
+	"log"
+	"strings"
+)
+
+func main() {
+	//a := aoc.New(15)
+
+	// numsStr := "0,3,6"
+	numsStr := "0,1,5,10,3,12,19"
+	nums := aoc.Map(aoc.MustAtoi, strings.Split(numsStr, ","))
+	fmt.Printf("nums %v\n", nums)
+
+	e := NewElves(nums)
+	for {
+		turn := e.NextTurn()
+		if turn.Turn > 2020 {
+			break
+		}
+		fmt.Printf("%s\n", turn)
+	}
+}
+
+type Turn struct {
+	Turn   int
+	Spoken int
+}
+
+func (t Turn) String() string {
+	return fmt.Sprintf("%d: %d", t.Turn, t.Spoken)
+}
+
+type Elves struct {
+	startingNums []int
+	lastTwo      map[int][]int
+	turn         int
+	last         int
+}
+
+func NewElves(startingNums []int) *Elves {
+	e := Elves{
+		startingNums: startingNums,
+		lastTwo:      make(map[int][]int),
+		turn:         1,
+	}
+	return &e
+}
+
+func (e *Elves) NextTurn() Turn {
+	//	fmt.Printf("JB %+v\n", e)
+	var thisTurn int
+	if len(e.startingNums) > 0 {
+		thisTurn = e.startingNums[0]
+		e.startingNums = e.startingNums[1:]
+	} else {
+		lastTwo, ok := e.lastTwo[e.last]
+		if !ok {
+			log.Fatalf("Last number hasn't been spoken, wtf?")
+		}
+		if len(lastTwo) == 2 {
+			thisTurn = lastTwo[0] - lastTwo[1]
+		} else if len(lastTwo) == 1 {
+			thisTurn = 0
+		}
+	}
+
+	lastTwo, ok := e.lastTwo[thisTurn]
+	if !ok {
+		lastTwo = make([]int, 0)
+	}
+	lastTwo = append([]int{e.turn}, lastTwo...)
+	if len(lastTwo) > 2 {
+		lastTwo = lastTwo[:2]
+	}
+	e.lastTwo[thisTurn] = lastTwo
+
+	t := Turn{
+		Turn:   e.turn,
+		Spoken: thisTurn,
+	}
+	e.last = thisTurn
+	e.turn++
+
+	return t
+}
