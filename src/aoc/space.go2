@@ -1,0 +1,67 @@
+package aoc
+
+import (
+	"fmt"
+)
+
+type VVec[T fmt.Stringer] struct {
+	offset int		// [0] is at [offset]
+	values []T 
+	ctor func()T
+}
+
+func NewVVec[T fmt.Stringer](ctor func() T) *VVec[T] {
+	return &VVec[T]{
+		ctor: ctor,
+		values: make([]T, 0),
+	}
+}
+
+// VVec runs from (Lo,Hi)
+func (vv *VVec[T]) Hi() int {
+	return len(vv.values) - vv.offset
+}
+
+func (vv *VVec[T]) Lo() int {
+	return -vv.offset
+}
+
+func (vv *VVec[T]) Spans(i int) bool {
+	return vv.Lo() < i && i < vv.Hi()
+}
+
+func (vv *VVec[T]) extend(i int) {
+	if vv.Spans(i) {
+		return
+	}
+	for i >= vv.Hi() {
+		vv.values = append(vv.values, vv.ctor())
+	}
+	for i < vv.Lo() {
+		vv.values = append([]T{vv.ctor()}, vv.values...)
+		vv.offset++
+	}
+}
+
+func (vv *VVec[T]) pos(i int) int {
+	return i + vv.offset
+}
+
+func (vv *VVec[T]) Set(i int, v T) {
+	vv.extend(i)
+	vv.values[vv.pos(i)] = v
+}
+
+func (vv VVec[T]) Get(i int) T {
+	vv.extend(i)
+	return vv.values[vv.pos(i)]
+}
+
+func (vv VVec[T]) String() string {
+//	return fmt.Sprintf("%d (%d): %v", vv.offset, len(vv.values), vv.values)
+	s := ""
+	for i := range s {
+		s += vv.values[i].String()
+	}
+	return s
+}

@@ -1,0 +1,128 @@
+package main
+
+import (
+	"aoc"
+	"fmt"
+	"strings"
+)
+
+type PrettyByte byte
+
+func (pb PrettyByte) String() string {
+	return fmt.Sprintf("%c", pb)
+}
+
+func main() {
+	a := aoc.New(17)
+	a.SetExampleData(`
+.#.
+..#
+###
+`)
+	a.UseExampleData(true)
+	lines := a.ReadLines()
+
+	d := NewDim(lines)
+	for i := 0; i < 6; i++ {
+		fmt.Printf("%s\n", d)
+	}
+
+//	v := NewVVec[PrettyByte](newPrettyByte)
+//	fmt.Printf("%s\n", v)
+//	v.Set(0, '#')
+//	fmt.Printf("%s\n", v)
+//	v.Set(1, '#')
+//	fmt.Printf("%s\n", v)
+//	v.Set(0, '#')
+//	fmt.Printf("%s\n", v)
+//	v.Set(-3, '#')
+//	fmt.Printf("%s\n", v)
+}
+
+func newPrettyByte() PrettyByte { return '.' }
+
+type Dim struct {
+	cubes *aoc.VVec[*aoc.VVec[*aoc.VVec[PrettyByte]]]
+	xlo, xhi int
+	ylo, yhi int
+	zlo, zhi int
+}
+
+func NewDim(lines []string) *Dim {
+	newLine := func() *aoc.VVec[PrettyByte] {
+		return aoc.NewVVec[PrettyByte](newPrettyByte)
+	}
+	newPlane := func() *aoc.VVec[*aoc.VVec[PrettyByte]] {
+		return aoc.NewVVec(newLine)
+	}
+	d := &Dim{
+		cubes: aoc.NewVVec[*aoc.VVec[*aoc.VVec[PrettyByte]]](newPlane),
+	}
+	for y, l := range lines {
+		fmt.Printf("JB line %d: %s\n", y, l)
+		for x := range l {
+			d.Set(x, y, 0, l[x])
+		}
+	}
+	return d
+}
+
+func (d *Dim) note(x, y, z int) {
+	if x < d.xlo {
+		d.xlo = x
+	}
+	if y < d.ylo {
+		d.ylo = y
+	}
+	if z < d.zlo {
+		d.zlo = z
+	}
+
+	if x > d.xhi {
+		d.xhi = x
+	}
+	if y > d.yhi {
+		d.yhi = y
+	}
+	if z > d.zhi {
+		d.zhi = z
+	}
+}
+
+func (d *Dim) Set(x, y, z int, v byte) {
+	d.note(x, y, z)
+	fmt.Printf("JB SET %d,%d,%d -> %c\n", x, y, z, v)
+	fmt.Printf("CUBES %s\n", d.cubes.String())
+	plane := d.cubes.Get(z)
+	fmt.Printf("JB SET got plane [%s]\n", plane)
+	line := plane.Get(y)
+	fmt.Printf("JB SET got line [%s]\n", line)
+	(*aoc.VVec[PrettyByte])(line).Set(x, PrettyByte(v))
+	line.Set(x, PrettyByte(v))
+	fmt.Printf("JB SET line is now [%s]\n", line)
+	fmt.Printf("JB SET plane is now [%s]\n", plane)
+	fmt.Printf("JB SET cubes now [%s]\n", d.cubes)
+}
+
+func (d *Dim) Get(x, y, z int) byte {
+	plane := d.cubes.Get(z)
+	line := plane.Get(y)
+	return byte(line.Get(x))
+}
+
+func (d Dim) String() string {
+	lines := []string{
+		fmt.Sprintf("x %d - %d y %d - %d z %d - %d", d.xlo, d.xhi, d.ylo, d.yhi, d.zlo, d.zhi),
+	}
+	for z := d.zlo; z <= d.zhi; z++ {
+		lines = append(lines, fmt.Sprintf("z=%d", z))
+		for y := d.ylo; y <= d.yhi; y++ {
+			l := ""
+			for x := d.xlo; x <= d.xhi; x++ {
+				l += fmt.Sprintf("%c", d.Get(x, y, z))
+			}
+			lines = append(lines, l)
+		}
+	}
+	return strings.Join(lines, "\n")
+}
