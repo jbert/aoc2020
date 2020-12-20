@@ -56,28 +56,31 @@ func newLine() *aoc.VVec[PrettyByte] { return aoc.NewVVec[PrettyByte](newPrettyB
 func copyLine(l *aoc.VVec[PrettyByte]) *aoc.VVec[PrettyByte] { return l.Copy() }
 func newPlane() *aoc.VVec[*aoc.VVec[PrettyByte]] { return aoc.NewVVec(newLine, copyLine) }
 func copyPlane(p *aoc.VVec[*aoc.VVec[PrettyByte]]) *aoc.VVec[*aoc.VVec[PrettyByte]] { return p.Copy() }
+func newVolume() *aoc.VVec[*aoc.VVec[*aoc.VVec[PrettyByte]]] { return aoc.NewVVec(newPlane, copyPlane) }
+func copyVolume(v *aoc.VVec[*aoc.VVec[*aoc.VVec[PrettyByte]]]) *aoc.VVec[*aoc.VVec[*aoc.VVec[PrettyByte]]] { return v.Copy() }
 
 type Dim struct {
-	cubes *aoc.VVec[*aoc.VVec[*aoc.VVec[PrettyByte]]]
+	hcubes *aoc.VVec[*aoc.VVec[*aoc.VVec[*aoc.VVec[PrettyByte]]]]
 	xlo, xhi int
 	ylo, yhi int
 	zlo, zhi int
+	wlo, whi int
 }
 
 func NewDim(lines []string) *Dim {
 	d := &Dim{
-		cubes: aoc.NewVVec[*aoc.VVec[*aoc.VVec[PrettyByte]]](newPlane, copyPlane),
+		hcubes: aoc.NewVVec[*aoc.VVec[*aoc.VVec[*aoc.VVec[PrettyByte]]]](newVolume, copyVolume),
 	}
 	for y, l := range lines {
 		fmt.Printf("JB line %d: %s\n", y, l)
 		for x := range l {
-			d.Set(x, y, 0, l[x])
+			d.Set(x, y, 0, 0, l[x])
 		}
 	}
 	return d
 }
 
-func (d *Dim) note(x, y, z int) {
+func (d *Dim) note(x, y, z, w int) {
 	if x < d.xlo {
 		d.xlo = x
 	}
@@ -86,6 +89,9 @@ func (d *Dim) note(x, y, z int) {
 	}
 	if z < d.zlo {
 		d.zlo = z
+	}
+	if w < d.wlo {
+		d.wlo = w
 	}
 
 	if x > d.xhi {
@@ -97,33 +103,44 @@ func (d *Dim) note(x, y, z int) {
 	if z > d.zhi {
 		d.zhi = z
 	}
+	if w > d.whi {
+		d.whi = w
+	}
 }
 
-func (d *Dim) Set(x, y, z int, v byte) {
-	d.note(x, y, z)
-	plane := d.cubes.Get(z)
+func (d *Dim) Set(x, y, z, w int, v byte) {
+	d.note(x, y, z, w)
+
+	volume := d.hcubes.Get(w)
+	plane := volume.Get(z)
 	line := plane.Get(y)
+
 	line.Set(x, PrettyByte(v))
+
 	plane.Set(y, line)
-	d.cubes.Set(z, plane)
+	volume.Set(z, plane)
+	d.hcubes.Set(w, volume)
 }
 
-func (d *Dim) Get(x, y, z int) byte {
-	plane := d.cubes.Get(z)
+func (d *Dim) Get(x, y, z, w int) byte {
+	volume := d.hcubes.Get(w)
+	plane := volume.Get(z)
 	line := plane.Get(y)
 	return byte(line.Get(x))
 }
 
-func (d *Dim) GetNeighbours(x, y, z int) []byte {
+func (d *Dim) GetNeighbours(x, y, z, w int) []byte {
 	var ns []byte
-	for dz := -1; dz <= 1; dz++ {
-		for dy := -1; dy <= 1; dy++ {
-			DX:
-			for dx := -1; dx <= 1; dx++ {
-				if dx == 0 && dy == 0 && dz == 0 {
-					continue DX
+	for dw := -1; dw <= 1; dw++ {
+		for dz := -1; dz <= 1; dz++ {
+			for dy := -1; dy <= 1; dy++ {
+				DX:
+				for dx := -1; dx <= 1; dx++ {
+					if dx == 0 && dy == 0 && dz == 0 && dw == 0 {
+						continue DX
+					}
+					ns = append(ns, d.Get(x+dx,y+dy,z+dz,w+dw))
 				}
-				ns = append(ns, d.Get(x+dx,y+dy,z+dz))
 			}
 		}
 	}
@@ -156,16 +173,18 @@ func (d *Dim) Tick() (int, int) {
 func (d *Dim) VisitWithNeighboursCopy(f func(v byte, ns []byte) byte) int {
 	changes := 0
 	newDim := NewDim([]string{})
-	for z := d.zlo-1; z <= d.zhi+1; z++ {
-		for y := d.ylo-1; y <= d.yhi+1; y++ {
-			for x := d.xlo-1; x <= d.xhi+1; x++ {
-				v := d.Get(x,y,z)
-				ns := d.GetNeighbours(x,y,z)
-				newV := f(v, ns)
-				if newV != v {
-					changes++
+	for w := d.wlo-1; w <= d.whi+1; w++ {
+		for z := d.zlo-1; z <= d.zhi+1; z++ {
+			for y := d.ylo-1; y <= d.yhi+1; y++ {
+				for x := d.xlo-1; x <= d.xhi+1; x++ {
+					v := d.Get(x,y,z,w)
+					ns := d.GetNeighbours(x,y,z,w)
+					newV := f(v, ns)
+					if newV != v {
+						changes++
+					}
+					newDim.Set(x,y,z,w,newV)
 				}
-				newDim.Set(x,y,z,newV)
 			}
 		}
 	}
@@ -176,18 +195,20 @@ func (d *Dim) VisitWithNeighboursCopy(f func(v byte, ns []byte) byte) int {
 
 func (d Dim) String() string {
 	lines := []string{
-		fmt.Sprintf("x %d - %d y %d - %d z %d - %d", d.xlo, d.xhi, d.ylo, d.yhi, d.zlo, d.zhi),
+		fmt.Sprintf("x %d - %d y %d - %d z %d - %d w %d - %d", d.xlo, d.xhi, d.ylo, d.yhi, d.zlo, d.zhi, d.wlo, d.whi),
 	}
-	for z := d.zlo; z <= d.zhi; z++ {
-		lines = append(lines, fmt.Sprintf("z=%d", z))
-		for y := d.ylo; y <= d.yhi; y++ {
-			l := ""
-			for x := d.xlo; x <= d.xhi; x++ {
-				l += fmt.Sprintf("%c", d.Get(x, y, z))
+	for w := d.wlo; w <= d.whi; w++ {
+		for z := d.zlo; z <= d.zhi; z++ {
+			lines = append(lines, fmt.Sprintf("z=%d", z))
+			for y := d.ylo; y <= d.yhi; y++ {
+				l := ""
+				for x := d.xlo; x <= d.xhi; x++ {
+					l += fmt.Sprintf("%c", d.Get(x, y, z, w))
+				}
+				lines = append(lines, l)
 			}
-			lines = append(lines, l)
+			lines = append(lines, "")
 		}
-		lines = append(lines, "")
 	}
 	return strings.Join(lines, "\n")
 }
