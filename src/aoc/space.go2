@@ -8,13 +8,28 @@ type VVec[T fmt.Stringer] struct {
 	offset int		// [0] is at [offset]
 	values []T 
 	ctor func()T
+	copyCtor func(T)T
 }
 
-func NewVVec[T fmt.Stringer](ctor func() T) *VVec[T] {
+func NewVVec[T fmt.Stringer](ctor func() T, copyCtor func(T) T) *VVec[T] {
 	return &VVec[T]{
 		ctor: ctor,
+		copyCtor: copyCtor,
 		values: make([]T, 0),
 	}
+}
+
+func (vv *VVec[T]) Copy() *VVec[T] {
+	newT := VVec[T]{
+		offset: vv.offset,
+		values: make([]T, len(vv.values)),
+		ctor: vv.ctor,
+		copyCtor: vv.copyCtor,
+	}
+	for i := range vv.values {
+		newT.values[i] = vv.copyCtor(vv.values[i])
+	}
+	return vv
 }
 
 // VVec runs from (Lo,Hi)

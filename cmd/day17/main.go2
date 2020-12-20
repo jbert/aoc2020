@@ -12,6 +12,13 @@ func (pb PrettyByte) String() string {
 	return fmt.Sprintf("%c", pb)
 }
 
+func (pb PrettyByte) Copy() PrettyByte { return pb }
+
+const (
+	Active = '#'
+	InActive = '.'
+)
+
 func main() {
 	a := aoc.New(17)
 	a.SetExampleData(`
@@ -19,13 +26,17 @@ func main() {
 ..#
 ###
 `)
-	a.UseExampleData(true)
+	//a.UseExampleData(true)
 	lines := a.ReadLines()
 
 	d := NewDim(lines)
+	var active int
 	for i := 0; i < 6; i++ {
-		fmt.Printf("%s\n", d)
+//		fmt.Printf("%s\n\n", d)
+		_, active = d.Tick()
 	}
+
+	fmt.Printf("%d active cubes\n", active)
 
 //	v := NewVVec[PrettyByte](newPrettyByte)
 //	fmt.Printf("%s\n", v)
@@ -40,6 +51,11 @@ func main() {
 }
 
 func newPrettyByte() PrettyByte { return '.' }
+func copyPrettyByte(pb PrettyByte) PrettyByte { return pb }
+func newLine() *aoc.VVec[PrettyByte] { return aoc.NewVVec[PrettyByte](newPrettyByte, copyPrettyByte) }
+func copyLine(l *aoc.VVec[PrettyByte]) *aoc.VVec[PrettyByte] { return l.Copy() }
+func newPlane() *aoc.VVec[*aoc.VVec[PrettyByte]] { return aoc.NewVVec(newLine, copyLine) }
+func copyPlane(p *aoc.VVec[*aoc.VVec[PrettyByte]]) *aoc.VVec[*aoc.VVec[PrettyByte]] { return p.Copy() }
 
 type Dim struct {
 	cubes *aoc.VVec[*aoc.VVec[*aoc.VVec[PrettyByte]]]
@@ -49,14 +65,8 @@ type Dim struct {
 }
 
 func NewDim(lines []string) *Dim {
-	newLine := func() *aoc.VVec[PrettyByte] {
-		return aoc.NewVVec[PrettyByte](newPrettyByte)
-	}
-	newPlane := func() *aoc.VVec[*aoc.VVec[PrettyByte]] {
-		return aoc.NewVVec(newLine)
-	}
 	d := &Dim{
-		cubes: aoc.NewVVec[*aoc.VVec[*aoc.VVec[PrettyByte]]](newPlane),
+		cubes: aoc.NewVVec[*aoc.VVec[*aoc.VVec[PrettyByte]]](newPlane, copyPlane),
 	}
 	for y, l := range lines {
 		fmt.Printf("JB line %d: %s\n", y, l)
@@ -91,17 +101,11 @@ func (d *Dim) note(x, y, z int) {
 
 func (d *Dim) Set(x, y, z int, v byte) {
 	d.note(x, y, z)
-	fmt.Printf("JB SET %d,%d,%d -> %c\n", x, y, z, v)
-	fmt.Printf("CUBES %s\n", d.cubes.String())
 	plane := d.cubes.Get(z)
-	fmt.Printf("JB SET got plane [%s]\n", plane)
 	line := plane.Get(y)
-	fmt.Printf("JB SET got line [%s]\n", line)
-	(*aoc.VVec[PrettyByte])(line).Set(x, PrettyByte(v))
 	line.Set(x, PrettyByte(v))
-	fmt.Printf("JB SET line is now [%s]\n", line)
-	fmt.Printf("JB SET plane is now [%s]\n", plane)
-	fmt.Printf("JB SET cubes now [%s]\n", d.cubes)
+	plane.Set(y, line)
+	d.cubes.Set(z, plane)
 }
 
 func (d *Dim) Get(x, y, z int) byte {
@@ -109,6 +113,66 @@ func (d *Dim) Get(x, y, z int) byte {
 	line := plane.Get(y)
 	return byte(line.Get(x))
 }
+
+func (d *Dim) GetNeighbours(x, y, z int) []byte {
+	var ns []byte
+	for dz := -1; dz <= 1; dz++ {
+		for dy := -1; dy <= 1; dy++ {
+			DX:
+			for dx := -1; dx <= 1; dx++ {
+				if dx == 0 && dy == 0 && dz == 0 {
+					continue DX
+				}
+				ns = append(ns, d.Get(x+dx,y+dy,z+dz))
+			}
+		}
+	}
+	return ns
+}
+
+func (d *Dim) Tick() (int, int) {
+	numActive := 0
+	numChanged := d.VisitWithNeighboursCopy(func (v byte, ns []byte) byte {
+		activeNs := aoc.Filter(func(v byte) bool { return v == Active }, ns)
+		if v == Active {
+			if (len(activeNs) == 2 || len(activeNs) == 3) {
+				numActive++
+				return Active
+			} else {
+				return InActive
+			}
+		} else {
+			if len(activeNs) == 3 {
+				numActive++
+				return Active
+			} else {
+				return InActive
+			}
+		}
+	})
+	return numChanged, numActive
+}
+
+func (d *Dim) VisitWithNeighboursCopy(f func(v byte, ns []byte) byte) int {
+	changes := 0
+	newDim := NewDim([]string{})
+	for z := d.zlo-1; z <= d.zhi+1; z++ {
+		for y := d.ylo-1; y <= d.yhi+1; y++ {
+			for x := d.xlo-1; x <= d.xhi+1; x++ {
+				v := d.Get(x,y,z)
+				ns := d.GetNeighbours(x,y,z)
+				newV := f(v, ns)
+				if newV != v {
+					changes++
+				}
+				newDim.Set(x,y,z,newV)
+			}
+		}
+	}
+	*d = *newDim
+	return changes
+}
+
 
 func (d Dim) String() string {
 	lines := []string{
@@ -123,6 +187,7 @@ func (d Dim) String() string {
 			}
 			lines = append(lines, l)
 		}
+		lines = append(lines, "")
 	}
 	return strings.Join(lines, "\n")
 }
