@@ -18,6 +18,16 @@ func main() {
 	lines := a.ReadLines()
 
 	sum := 0
+	partB = false
+	for _, l := range lines {
+		result := EvaluateString(l)
+		sum += result
+		fmt.Printf("%s -> %d\n", l, result)
+	}
+	fmt.Printf("sum %d\n", sum)
+
+	sum = 0
+	partB = true
 	for _, l := range lines {
 		result := EvaluateString(l)
 		sum += result
@@ -26,11 +36,20 @@ func main() {
 	fmt.Printf("sum %d\n", sum)
 }
 
+var partB bool
+
 func EvaluateString(s string) int {
 	//	fmt.Printf("Eval: %s\n", s)
 	paren := strings.Index(s, "(")
 	if paren >= 0 {
 		return EvaluateString(reduceParen(s, paren))
+	}
+
+	if partB {
+		addOp := strings.Index(s, "+")
+		if addOp > 0 {
+			return EvaluateString(reduceAddOp(s, addOp))
+		}
 	}
 
 	// No parens
@@ -40,6 +59,31 @@ func EvaluateString(s string) int {
 	}
 
 	return aoc.MustAtoi(s)
+}
+
+// No parens
+func reduceAddOp(s string, addOp int) string {
+	aEnd := addOp - 1
+	aStart := strings.LastIndex(s[:aEnd], " ")
+	if aStart < 0 {
+		aStart = 0
+	} else {
+		aStart++
+	}
+	//	fmt.Printf("RAO aStart %d aEnd %d s %s (%s)\n", aStart, aEnd, s, s[aStart:aEnd])
+	a := aoc.MustAtoi(s[aStart:aEnd])
+
+	bStart := addOp + 2
+	bEnd := strings.Index(s[bStart:], " ")
+	if bEnd > 0 {
+		bEnd += bStart
+	} else {
+		bEnd = len(s)
+	}
+	b := aoc.MustAtoi(s[bStart:bEnd])
+
+	value := a + b
+	return replace(s, aStart, bEnd, value)
 }
 
 func reduceParen(s string, paren int) string {
