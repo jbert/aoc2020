@@ -1,0 +1,104 @@
+package main
+
+import (
+	"aoc"
+	"fmt"
+	"strings"
+)
+
+func main() {
+	a := aoc.New(18)
+	a.SetExampleData(`
+2 * 3 + (4 * 5)
+5 + (8 * 3 + 9 + 3 * 4 * 3)
+5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))
+((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2
+`)
+	//a.UseExampleData(true)
+	lines := a.ReadLines()
+
+	sum := 0
+	for _, l := range lines {
+		result := EvaluateString(l)
+		sum += result
+		fmt.Printf("%s -> %d\n", l, result)
+	}
+	fmt.Printf("sum %d\n", sum)
+}
+
+func EvaluateString(s string) int {
+	//	fmt.Printf("Eval: %s\n", s)
+	paren := strings.Index(s, "(")
+	if paren >= 0 {
+		return EvaluateString(reduceParen(s, paren))
+	}
+
+	// No parens
+	space := strings.Index(s, " ")
+	if space > 0 {
+		return EvaluateString(reduceFirstOp(s, space))
+	}
+
+	return aoc.MustAtoi(s)
+}
+
+func reduceParen(s string, paren int) string {
+	closeParen := findCloseParen(s, paren)
+	value := EvaluateString(s[paren+1 : closeParen-1])
+	return replace(s, paren, closeParen, value)
+}
+
+func replace(s string, from, to int, value int) string {
+	sNew := s[0:from]
+	sNew += fmt.Sprintf("%d", value)
+	sNew += s[to:]
+	return sNew
+}
+
+func findCloseParen(s string, i int) int {
+	i++
+	depth := 1
+	for depth > 0 {
+		if s[i] == '(' {
+			depth++
+		} else if s[i] == ')' {
+			depth--
+		}
+		i++
+	}
+	return i
+}
+
+func reduceFirstOp(s string, space int) string {
+	//	fmt.Printf("ReduceFirstOp: [%s] space %d\n", s, space)
+	a := aoc.MustAtoi(s[0:space])
+	//	fmt.Printf("ReduceFirstOp: a [%d]\n", a)
+	op := s[space+1]
+	//	fmt.Printf("ReduceFirstOp: op [%c]\n", op)
+	bStart := space + 3
+	bEnd := strings.Index(s[bStart:], " ")
+	if bEnd > 0 {
+		bEnd += bStart
+	} else {
+		bEnd = len(s)
+	}
+	//	fmt.Printf("ReduceFirstOp: [%s] bStart %d bEnd %d\n", s, bStart, bEnd)
+	//	fmt.Printf("ReduceFirstOp: num [%s]\n", s[bStart:bEnd])
+	//	fmt.Printf("ReduceFirstOp: num [%s]\n", s[bStart:bEnd])
+	b := aoc.MustAtoi(s[bStart:bEnd])
+
+	value := EvaluateOp(a, b, op)
+	return replace(s, 0, bEnd, value)
+}
+
+func EvaluateOp(a, b int, op byte) int {
+	//	fmt.Printf("EvaluateOp: [%d %c %d]\n", a, op, b)
+	switch op {
+	case '+':
+		return a + b
+	case '*':
+		return a * b
+	default:
+		panic("wtf")
+	}
+}
