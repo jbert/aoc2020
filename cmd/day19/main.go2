@@ -1,0 +1,133 @@
+package main
+
+import (
+	"aoc"
+	"fmt"
+	"strings"
+)
+
+func main() {
+	a := aoc.New(19)
+	a.SetExampleData(`
+0: 4 1 5
+1: 2 3 | 3 2
+2: 4 4 | 5 5
+3: 4 5 | 5 4
+4: "a"
+5: "b"
+
+ababbb
+bababa
+abbbab
+aaabbb
+aaaabbb
+`)
+	//a.UseExampleData(true)
+	groups := a.ReadLineGroups()
+	matcher := parseRules(groups[0])
+	messages := groups[1]
+	count := 0
+	for _, m := range messages {
+		matches := matcher(m)
+		fmt.Printf("%s -> %v\n", m, matches)
+		if matches {
+			count++
+		}
+	}
+	fmt.Printf("%d messages match\n", count)
+}
+
+func parseRules(lines []string) func(s string) bool {
+	rules := make([]Rule, len(lines))
+	for _, l := range lines {
+		colon := strings.Index(l, ": ")
+		if colon < 0 {
+			panic("wtf")
+		}
+		ruleIndex := aoc.MustAtoi(l[:colon])
+		fmt.Printf("RULE: %d [%s]\n", ruleIndex, l)
+		if rules[ruleIndex] != nil {
+			panic(fmt.Sprintf("Overwriting rule %d", ruleIndex))
+		}
+		rules[ruleIndex] = parseRule(rules, l[colon+2:])
+	}
+	return func(s string) bool {
+		matched := rules[0](s)
+		return matched == len(s)
+	}
+}
+
+func parseRule(rules []Rule, s string) Rule {
+	s = strings.TrimLeft(s, " ")
+	s = strings.TrimRight(s, " ")
+
+	if s[0] == '"' {
+		fmt.Printf("JB - MMC [%c]\n", s[1])
+		return MakeMatchChar(s[1])
+	}
+	pipe := strings.Index(s, "|")
+	if pipe > 0 {
+		first := parseRule(rules, s[0:pipe])
+		second := parseRule(rules, s[pipe+1:])
+		fmt.Printf("JB - MAL [%s , %s]\n", s[0:pipe], s[pipe+1:])
+		return MakeAtLeastOne([]*Rule{&first, &second})
+	}
+
+	bits := strings.Split(s, " ")
+	if len(bits) < 1 {
+		panic(fmt.Sprintf("Ooops: %s\n", s))
+	}
+	ruleIndices := aoc.Map(aoc.MustAtoi, bits)
+	fmt.Printf("JB - MS [%v]\n", ruleIndices)
+	var sequence []*Rule
+	for _, ri := range ruleIndices {
+		sequence = append(sequence, &rules[ri])
+	}
+	return MakeSequence(sequence)
+}
+
+// A rule attempt to match at the beginning of the string
+// It returns the number of matched chars, -1 if no match
+type Rule func(s string) int
+
+func MakeAtLeastOne(rules []*Rule) Rule {
+	f := func(s string) int {
+		for _, r := range rules {
+			matched := (*r)(s)
+			if matched > 0 {
+				return matched
+			}
+		}
+		return -1
+	}
+	return f
+}
+
+func MakeSequence(rules []*Rule) Rule {
+	f := func(s string) int {
+		pos := 0
+		for _, r := range rules {
+			matched := (*r)(s[pos:])
+			if matched < 0 {
+				return -1
+			}
+			pos += matched
+		}
+		return pos
+	}
+	return f
+}
+
+func MakeMatchChar(v byte) Rule {
+	f := func(s string) int {
+		if s[0] == v {
+			return 1
+		} else {
+			return -1
+		}
+	}
+	return f
+}
+
+type RuleSet struct {
+}
