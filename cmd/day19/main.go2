@@ -165,7 +165,7 @@ func parseRules(lines []string) func(s string) bool {
 		rules[ruleIndex] = parseRule(fmt.Sprintf("RI: %d", ruleIndex), rules, l[colon+2:])
 	}
 	return func(s string) bool {
-		matched := rules[0](s)
+		matched := rules[0]("0", s)
 		return matched == len(s)
 	}
 }
@@ -201,13 +201,13 @@ func parseRule(name string, rules []Rule, s string) Rule {
 
 // A rule attempt to match at the beginning of the string
 // It returns the number of matched chars, -1 if no match
-type Rule func(s string) int
+type Rule func(instanceName string, s string) int
 
 func MakeAtLeastOne(name string, ruleStr string, rules []*Rule) Rule {
-	f := func(s string) int {
-		InLog(fmt.Sprintf("%s (%s) [%s]: ", name, ruleStr, s))
-		for _, r := range rules {
-			matched := (*r)(s)
+	f := func(iName string, s string) int {
+		InLog(fmt.Sprintf("%s (%s) [%s]: ", iName, ruleStr, s))
+		for i, r := range rules {
+			matched := (*r)(fmt.Sprintf("%s.%d", iName, i), s)
 			if matched > 0 {
 				OutLog(fmt.Sprintf("Y %d", matched))
 				return matched
@@ -220,11 +220,11 @@ func MakeAtLeastOne(name string, ruleStr string, rules []*Rule) Rule {
 }
 
 func MakeSequence(name string, ruleStr string, rules []*Rule) Rule {
-	f := func(s string) int {
-		InLog(fmt.Sprintf("%s (%s) [%s]: ", name, ruleStr, s))
+	f := func(iName string, s string) int {
+		InLog(fmt.Sprintf("%s (%s) [%s]: ", iName, ruleStr, s))
 		totalMatched := 0
-		for _, r := range rules {
-			matched := (*r)(s[totalMatched:])
+		for i, r := range rules {
+			matched := (*r)(fmt.Sprintf("%s_%d", iName, i), s[totalMatched:])
 			if matched < 0 {
 				OutLog("NO")
 				return -1
@@ -238,8 +238,8 @@ func MakeSequence(name string, ruleStr string, rules []*Rule) Rule {
 }
 
 func MakeMatchChar(name string, ruleStr string, v byte) Rule {
-	f := func(s string) int {
-		InLog(fmt.Sprintf("%s (%s) [%s]: ", name, ruleStr, s))
+	f := func(iName, s string) int {
+		InLog(fmt.Sprintf("%s (%s) [%s]: ", iName, ruleStr, s))
 		if len(s) == 0 {
 			OutLog("NO")
 			return -1
