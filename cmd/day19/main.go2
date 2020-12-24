@@ -2,28 +2,13 @@ package main
 
 import (
 	"aoc"
+	"aoc/set"
 	"fmt"
 	"strings"
 )
 
 func main() {
 	a := aoc.New(19)
-	/*
-			a.SetExampleData(`
-		0: 4 1 5
-		1: 2 3 | 3 2
-		2: 4 4 | 5 5
-		3: 4 5 | 5 4
-		4: "a"
-		5: "b"
-
-		ababbb
-		bababa
-		abbbab
-		aaabbb
-		aaaabbb
-		`)
-	*/
 	/*
 			a.SetExampleData(`
 		42: 9 14 | 10 1
@@ -78,19 +63,26 @@ func main() {
 
 	a.SetExampleData(`
 0: 1 2
-1: 10 20 | 10 20 1
-2: 20 10
-10: "a"
-20: "b"
+1: 8 52
+2: 52 8
+8: 42 | 42 8
+42: "a"
+52: "b"
 
-ababba
-abba
-baba
-abb
-aba
-ba
+aabba
 `)
-	a.UseExampleData(true)
+	/*
+	   ababba
+	   abba
+	   abbaa
+	   aaabba
+	   baba
+	   abb
+	   aba
+	   ba
+	   `)
+	*/
+	//a.UseExampleData(true)
 	groups := a.ReadLineGroups()
 	messages := groups[1]
 
@@ -107,21 +99,19 @@ ba
 		fmt.Printf("%d messages match\n", count)
 	*/
 
-	/*
-		for i := range groups[0] {
-			// 8: 42
-			if strings.HasPrefix(groups[0][i], "8:") {
-				fmt.Printf("JB - replaced 8\n")
-				groups[0][i] = "8: 42 | 42 8"
-			}
-			// 11: 42 31
-			if strings.HasPrefix(groups[0][i], "11:") {
-				fmt.Printf("JB - replaced 11\n")
-				groups[0][i] = "11: 42 31 | 42 11 31"
-			}
+	for i := range groups[0] {
+		// 8: 42
+		if strings.HasPrefix(groups[0][i], "8:") {
+			fmt.Printf("JB - replaced 8\n")
+			groups[0][i] = "8: 42 | 42 8"
 		}
-	*/
-	logOn = true
+		// 11: 42 31
+		if strings.HasPrefix(groups[0][i], "11:") {
+			fmt.Printf("JB - replaced 11\n")
+			groups[0][i] = "11: 42 31 | 42 11 31"
+		}
+	}
+	//
 	matcher := parseRules(groups[0])
 	count := 0
 	for _, m := range messages {
@@ -158,15 +148,20 @@ func parseRules(lines []string) func(s string) bool {
 			panic("wtf")
 		}
 		ruleIndex := aoc.MustAtoi(l[:colon])
-		//fmt.Printf("RULE: %d [%s]\n", ruleIndex, l)
+		//		fmt.Printf("RULE: %d [%s]\n", ruleIndex, l)
 		if rules[ruleIndex] != nil {
 			panic(fmt.Sprintf("Overwriting rule %d", ruleIndex))
 		}
-		rules[ruleIndex] = parseRule(fmt.Sprintf("RI: %d", ruleIndex), rules, l[colon+2:])
+		rules[ruleIndex] = parseRule(fmt.Sprintf("%d", ruleIndex), rules, l[colon+2:])
 	}
 	return func(s string) bool {
-		matched := rules[0]("0", s)
-		return matched == len(s)
+		matches := rules[0]("0", s)
+		for _, m := range matches {
+			if m == len(s) {
+				return true
+			}
+		}
+		return false
 	}
 }
 
@@ -201,83 +196,71 @@ func parseRule(name string, rules []Rule, s string) Rule {
 
 // A rule attempt to match at the beginning of the string
 // It returns the number of matched chars, -1 if no match
-type Rule func(instanceName string, s string) int
+type Rule func(instanceName string, s string) []int
+
+var atLeastOneRecursionLimit int
 
 func MakeAtLeastOne(name string, ruleStr string, rules []*Rule) Rule {
-	f := func(iName string, s string) int {
-		InLog(fmt.Sprintf("%s (%s) [%s]: ", iName, ruleStr, s))
-		for i, r := range rules {
-			matched := (*r)(fmt.Sprintf("%s.%d", iName, i), s)
-			if matched > 0 {
-				OutLog(fmt.Sprintf("Y %d", matched))
-				return matched
-			}
+	f := func(iName string, s string) []int {
+		// Eagerly chase all options, if both match, return longest
+		// Eagerness means we may inf recurse, so set a hard limit
+		atLeastOneRecursionLimit++
+		if atLeastOneRecursionLimit > 100 {
+			return []int{}
 		}
-		OutLog("NO")
-		return -1
+		defer func() {
+			atLeastOneRecursionLimit--
+		}()
+
+		var allMatches []int
+		iName = fmt.Sprintf("%s:%s", iName, name)
+		for i, r := range rules {
+			matches := (*r)(fmt.Sprintf("%s.%d", iName, i), s)
+			allMatches = append(matches, allMatches...)
+		}
+		return allMatches
 	}
 	return f
 }
 
 func MakeSequence(name string, ruleStr string, rules []*Rule) Rule {
-	f := func(iName string, s string) int {
-		InLog(fmt.Sprintf("%s (%s) [%s]: ", iName, ruleStr, s))
-		totalMatched := 0
-		for i, r := range rules {
-			matched := (*r)(fmt.Sprintf("%s_%d", iName, i), s[totalMatched:])
-			if matched < 0 {
-				OutLog("NO")
-				return -1
-			}
-			totalMatched += matched
+	f := func(iName string, s string) []int {
+		if len(rules) == 0 {
+			return []int{0}
 		}
-		OutLog(fmt.Sprintf("Y %d", totalMatched))
-		return totalMatched
+
+		iName = "todo - deleteme"
+		firstMatched := (*rules[0])(iName, s)
+		if len(firstMatched) == 0 {
+			return []int{}
+		}
+
+		f := MakeSequence("foo", "bar", rules[1:])
+
+		allMatches := set.New[int]()
+		for _, fm := range firstMatched {
+			matches := f("foo", s[fm:])
+			for _, m := range matches {
+				allMatches.Insert(m + fm)
+			}
+		}
+
+		return allMatches.Slice()
 	}
 	return f
 }
 
 func MakeMatchChar(name string, ruleStr string, v byte) Rule {
-	f := func(iName, s string) int {
-		InLog(fmt.Sprintf("%s (%s) [%s]: ", iName, ruleStr, s))
+	f := func(iName, s string) []int {
+		iName = fmt.Sprintf("%s:%s", iName, name)
 		if len(s) == 0 {
-			OutLog("NO")
-			return -1
+			return []int{}
 		}
 		if s[0] == v {
-			OutLog("Y 1")
-			return 1
+			return []int{1}
 		} else {
-			OutLog("NO")
-			return -1
+			return []int{}
 		}
 	}
 	return f
-}
-
-var logOn bool
-var depth int
-
-func InLog(s string) {
-	if logOn {
-		fmt.Printf("%s%s\n", getIndent(), s)
-	}
-	depth++
-}
-
-func OutLog(s string) {
-	strIndent := getIndent()
-	depth--
-	if logOn {
-		fmt.Printf("%s%s\n", strIndent, s)
-	}
-}
-
-// Is there a printf specifier for this?
-func getIndent() string {
-	s := ""
-	for i := 0; i < depth; i++ {
-		s += " "
-	}
-	return s
 }
