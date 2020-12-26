@@ -1,0 +1,454 @@
+package main
+
+import (
+	"aoc"
+	"aoc/set"
+	"fmt"
+	"math"
+	"strings"
+)
+
+func main() {
+	a := aoc.New(20)
+	a.SetExampleData(`
+Tile 2311:
+..##.#..#.
+##..#.....
+#...##..#.
+####.#...#
+##.##.###.
+##...#.###
+.#.#.#..##
+..#....#..
+###...#.#.
+..###..###
+
+Tile 1951:
+#.##...##.
+#.####...#
+.....#..##
+#...######
+.##.#....#
+.###.#####
+###.##.##.
+.###....#.
+..#.#..#.#
+#...##.#..
+
+Tile 1171:
+####...##.
+#..##.#..#
+##.#..#.#.
+.###.####.
+..###.####
+.##....##.
+.#...####.
+#.##.####.
+####..#...
+.....##...
+
+Tile 1427:
+###.##.#..
+.#..#.##..
+.#.##.#..#
+#.#.#.##.#
+....#...##
+...##..##.
+...#.#####
+.#.####.#.
+..#..###.#
+..##.#..#.
+
+Tile 1489:
+##.#.#....
+..##...#..
+.##..##...
+..#...#...
+#####...#.
+#..#.#.#.#
+...#.#.#..
+##.#...##.
+..##.##.##
+###.##.#..
+
+Tile 2473:
+#....####.
+#..#.##...
+#.##..#...
+######.#.#
+.#...#.#.#
+.#########
+.###.#..#.
+########.#
+##...##.#.
+..###.#.#.
+
+Tile 2971:
+..#.#....#
+#...###...
+#.#.###...
+##.##..#..
+.#####..##
+.#..####.#
+#..#.#..#.
+..####.###
+..#.#.###.
+...#.#.#.#
+
+Tile 2729:
+...#.#.#.#
+####.#....
+..#.#.....
+....#..#.#
+.##..##.#.
+.#.####...
+####.#.#..
+##.####...
+##..#.##..
+#.##...##.
+
+Tile 3079:
+#.#.#####.
+.#..######
+..#.......
+######....
+####.#..#.
+.#...#.##.
+#.#####.##
+..#.###...
+..#.......
+..#.###...
+`)
+//	a.UseExampleData(true)
+	groups := a.ReadLineGroups()
+	tilePieces := aoc.Map(ParseTilePiece, groups)
+
+	size = int(math.Sqrt(float64(len(tilePieces))))
+	if size*size != len(tilePieces) {
+		panic("wtf?")
+	}
+	/*
+		for _, t := range tilePieces {
+			fmt.Printf("%s\n\n", t)
+		}
+	*/
+	TP = make(map[TPID]TilePiece)
+	for _, tp := range tilePieces {
+		TP[tp.ID] = tp
+	}
+
+	fmt.Printf("%d tile pieces\n", len(tilePieces))
+
+	/*
+		id := 2311
+		for angle := 00; angle < 360; angle += 90 {
+			ot := OrientedTile{
+				ID:      id,
+				Angle:   angle,
+				Flipped: false,
+			}
+			fmt.Printf("%d degrees, flipped %t\n%s\n", angle, ot.Flipped, ot.Edges())
+			ot.Flipped = true
+			fmt.Printf("%d degrees, flipped %t\n%s\n", angle, ot.Flipped, ot.Edges())
+		}
+	*/
+
+	possibleAdj := make(map[TPID]set.Set[TPID])
+	for _, tp := range tilePieces {
+		adj := set.New[TPID]()
+		OTHER:
+		for _, other := range tilePieces {
+			if tp.ID == other.ID {
+				continue OTHER
+			}
+			if TP[tp.ID].PossibleAdjacent(TP[other.ID]) {
+				adj.Insert(other.ID)
+			}
+		}
+		possibleAdj[tp.ID] = adj
+	}
+
+	// Our list of possible arrangements
+	possibles := []Possibility{
+		{
+			image:  aoc.NewMatrix[*OrientedTile](size, size),
+			remaining: set.New[TPID](),
+			completed: 0,
+		},
+	}
+	for _, tp := range tilePieces {
+		possibles[0].remaining.Insert(tp.ID)
+	}
+
+	var found *Possibility
+
+	SEARCH:
+	for {
+		fmt.Printf("JB %d possibles\n", len(possibles))
+		if len(possibles) == 0 {
+			panic("Ran out of possibilities")
+		}
+		// Pop
+		p := possibles[0]
+		possibles = possibles[1:]
+		fanOut := p.Expand()
+		if len(fanOut) == 1 && fanOut[0].remaining.Empty() {
+			found = &fanOut[0]
+			break SEARCH
+		}
+		fmt.Printf("Expanded: completed %d to more %d possibles\n", p.completed, len(fanOut))
+		possibles = append(possibles, fanOut...)
+	}
+
+	if found != nil {
+		fmt.Printf("Found a completion\n%s\n", found)
+		tl := found.image.Get(0,0).ID
+		tr := found.image.Get(size-1,0).ID
+		bl := found.image.Get(0,size-1).ID
+		br := found.image.Get(size-1,size-1).ID
+		fmt.Printf("Product = %d * %d * %d * %d = %d\n", tl, tr, bl, br, tl*tr*bl*br)
+	} else {
+		fmt.Printf("No solution\n")
+	}
+}
+
+var size int
+var TP map[TPID]TilePiece
+
+type TPID int
+func (id TPID) String() string {
+	return fmt.Sprintf("%d", id)
+}
+
+type Possibility struct {
+	image *aoc.Matrix[*OrientedTile]
+	remaining set.Set[TPID]
+	completed int
+}
+
+func (p Possibility) Expand() []Possibility {
+//	fmt.Printf("JB Expanding %p completed %d\n", p.image, p.completed)
+	i := p.completed % size
+	j := p.completed / size
+	if p.image.Get(i, j) != nil {
+//		fmt.Printf("JB - %p at 0,0: %p\n", p.image, p.image.Get(0,0))
+//		fmt.Printf("JB - %p at 1,0: %p\n", p.image, p.image.Get(1,0))
+//		fmt.Printf("JB - %p at 0,1: %p\n", p.image, p.image.Get(0,1))
+//		fmt.Printf("JB - %p at 1,1: %p\n", p.image, p.image.Get(1,1))
+		panic(fmt.Sprintf("Cell [%d,%d] in image %p already non-empty", i, j, p.image))
+	}
+	urdl := p.GetURDL(i, j)
+
+	var fanOut []Possibility
+	p.remaining.ForEach(func(id TPID) {
+		tp := TP[id]
+		forms := tp.Forms()
+		for _, form := range forms {
+			if urdl.Allows(form) {
+				q := p.Copy()
+//				fmt.Printf("Set image %p (%d,%d) to %p\n", q.image, i, j, form)
+				q.image.Set(i, j, form)
+				q.remaining.Remove(id)
+				q.completed++
+				fanOut = append(fanOut, q)
+			}
+		}
+	})
+	return fanOut
+}
+
+type URDL struct {
+	up, down, left, right *OrientedTile
+}
+
+func (urdl URDL) Allows(ot *OrientedTile) bool {
+	// Reverse because all edges go clockwise
+	if urdl.up != nil && urdl.up.Bottom() != reverseString(ot.Top()) {
+		return false
+	}
+	if urdl.right != nil && urdl.right.Left() != reverseString(ot.Right()) {
+		return false
+	}
+	if urdl.down != nil && urdl.down.Top() != reverseString(ot.Bottom()) {
+		return false
+	}
+	if urdl.left != nil && urdl.left.Right() != reverseString(ot.Left()) {
+		return false
+	}
+	return true
+}
+
+func (p Possibility) Copy() Possibility {
+	return Possibility{
+		image: p.image.Copy(),
+		remaining: p.remaining.Copy(),
+		completed: p.completed,
+	}
+}
+
+func (p Possibility) GetURDL(i, j int) URDL {
+	urdl := URDL{}
+	get := func(i, j int) *OrientedTile {
+		if p.image.InBounds(i,j) {
+			return p.image.Get(i, j)
+		}
+		return nil
+	}
+	urdl.up = get(i,j-1)
+	urdl.right = get(i+1,j)
+	urdl.down = get(i,j+1)
+	urdl.left = get(i-1,j)
+	return urdl
+}
+
+type Edges struct {
+	top, left, bottom, right string
+}
+
+func (e Edges) String() string {
+	return fmt.Sprintf("T: %s\nR: %s\nB: %s\nL: %s", e.top, e.right, e.bottom, e.left)
+}
+
+func (e Edges) Slice() []string {
+	return []string{
+		e.top,
+		e.left,
+		e.bottom,
+		e.right,
+	}
+}
+
+func (e Edges) Rot90() Edges {
+	newEdges := Edges{}
+	newEdges.right = e.top
+	newEdges.bottom = e.right
+	newEdges.left = e.bottom
+	newEdges.top = e.left
+	return newEdges
+}
+
+type OrientedTile struct {
+	ID      TPID
+	Angle   int
+	Flipped bool
+}
+
+func (ot OrientedTile) String() string {
+	return "todo"
+}
+
+// All edges run clockwise
+func (ot *OrientedTile) Edges() Edges {
+	tp := TP[ot.ID]
+	edges := tp.Edges()
+	if ot.Flipped {
+		edges.top, edges.bottom = reverseString(edges.bottom), reverseString(edges.top)
+		edges.left = reverseString(edges.left)
+		edges.right = reverseString(edges.right)
+	}
+	switch ot.Angle {
+	case 0:
+		// Do nothing
+	case 90:
+		edges = edges.Rot90()
+	case 180:
+		edges = edges.Rot90().Rot90()
+	case 270:
+		edges = edges.Rot90().Rot90().Rot90()
+	default:
+		panic("wtf?")
+	}
+	return edges
+}
+
+func (ot *OrientedTile) Top() string { return ot.Edges().top }
+func (ot *OrientedTile) Bottom() string { return ot.Edges().bottom }
+func (ot *OrientedTile) Left() string { return ot.Edges().left }
+func (ot *OrientedTile) Right() string { return ot.Edges().right }
+
+type TilePiece struct {
+	ID                       TPID
+	lines                    []string
+	edges                    Edges
+}
+
+func reverseString(s string) string {
+	rev := make([]byte, len(s))
+	for i := range rev {
+		rev[i] = s[len(s)-i-1]
+	}
+	return string(rev)
+}
+
+func (tp TilePiece) Edges() Edges {
+	return tp.edges
+}
+
+func (tp TilePiece) PossibleAdjacent(other TilePiece) bool {
+	possEdges := set.New[string]()
+	for _, edge := range tp.edges.Slice() {
+		possEdges.Insert(edge)
+		possEdges.Insert(reverseString(edge))
+	}
+	otherPossEdges := set.New[string]()
+	for _, edge := range other.edges.Slice() {
+		otherPossEdges.Insert(edge)
+		otherPossEdges.Insert(reverseString(edge))
+	}
+	return !possEdges.Intersect(otherPossEdges).Empty()
+}
+
+func (tp TilePiece) String() string {
+	lines := []string{fmt.Sprintf("Tile %d", tp.ID)}
+	lines = append(lines, tp.lines...)
+	return strings.Join(lines, "\n")
+}
+
+func (tp TilePiece) Forms() []*OrientedTile {
+	var forms []*OrientedTile
+
+	angles := []int{0,90,180,270}
+	for _, angle := range angles {
+		forms = append(forms, &OrientedTile{
+			ID: tp.ID,
+			Angle: angle,
+			Flipped: true,
+		})
+		forms = append(forms, &OrientedTile{
+			ID: tp.ID,
+			Angle: angle,
+			Flipped: false,
+		})
+	}
+	return forms
+}
+
+func ParseTilePiece(lines []string) TilePiece {
+	tp := TilePiece{}
+	s := lines[0]
+	s = strings.TrimRight(s, ":")
+	s = strings.TrimLeft(s, "Tile ")
+	tp.ID = TPID(aoc.MustAtoi(s))
+	tp.lines = lines[1:]
+	tp.init()
+	return tp
+}
+
+func (tp *TilePiece) init() {
+	// Edges are all clockwise
+	edges := Edges{}
+	edges.top = tp.lines[0]
+	edges.bottom = reverseString(tp.lines[len(tp.lines)-1])
+
+	left := make([]byte, len(tp.lines[0]))
+	right := make([]byte, len(tp.lines[0]))
+	for i := range tp.lines {
+		j := len(tp.lines) - i - 1
+		left[i] = tp.lines[j][0]
+		right[i] = tp.lines[i][len(tp.lines[0])-1]
+	}
+	edges.left = string(left)
+	edges.right = string(right)
+
+	tp.edges = edges
+}

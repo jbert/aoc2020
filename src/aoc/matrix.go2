@@ -37,7 +37,9 @@ func (m *Matrix[T]) VisitWithNeighbours(f func(v T, ns[]T) T) *Matrix[T] {
 func (m *Matrix[T]) Copy() *Matrix[T] {
 	newM := NewMatrix[T](m.Width, m.Height)
 	for i, row := range m.cells {
-		newM.SetRow(i, row)
+		newRow := make([]T, len(row))
+		copy(newRow, row)
+		newM.SetRow(i, newRow)
 	}
 	return newM
 }
