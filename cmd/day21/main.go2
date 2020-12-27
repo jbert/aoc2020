@@ -1,0 +1,68 @@
+package main
+
+import (
+	"aoc"
+	"aoc/set"
+	"fmt"
+	"strings"
+)
+
+func main() {
+	a := aoc.New(21)
+	a.SetExampleData(`
+mxmxvkd kfcds sqjhc nhms (contains dairy, fish)
+trh fvjkl sbzzf mxmxvkd (contains dairy)
+sqjhc fvjkl (contains soy)
+sqjhc mxmxvkd sbzzf (contains fish)
+`)
+	// a.UseExampleData(true)
+	lines := a.ReadLines()
+
+	suspects := make(map[string]set.Set[string])
+	ingredientOccurence := make(map[string]int)
+	for _, l := range lines {
+		ingredients, allergens := parseLine(l)
+		for _, ingredient := range ingredients {
+			ingredientOccurence[ingredient]++
+		}
+		for _, allergen := range allergens {
+			causes, ok := suspects[allergen]
+			ings := set.NewFromSlice[string](ingredients)
+			if !ok {
+				causes = ings
+			} else {
+				causes = causes.Intersect(ings)
+			}
+			suspects[allergen] = causes
+		}
+	}
+
+	implicatedIn := make(map[string]int)
+	for allergen, possibleCauses := range suspects {
+		fmt.Printf("%s => %s\n", allergen, possibleCauses)
+		for _, cause := range possibleCauses.Slice() {
+			implicatedIn[cause]++
+		}
+	}
+
+	sum := 0
+	for ingredient, count := range ingredientOccurence {
+		implicatedCount := implicatedIn[ingredient]
+		fmt.Printf("%s => %d\n", ingredient, implicatedCount)
+		if implicatedCount == 0 {
+			sum += count
+		}
+	}
+	fmt.Printf("sum %d\n", sum)
+}
+
+func parseLine(s string) ([]string, []string) {
+	spaceParen := strings.Index(s, " (")
+	if spaceParen < 0 {
+		panic(fmt.Sprintf("No opening paren: %s", s))
+	}
+	ingredients := strings.Split(s[:spaceParen], " ")
+	allergens := strings.Split(s[spaceParen+2:len(s)-1], " ")[1:]
+	allergens = aoc.Map(func(s string) string { return strings.TrimRight(s, ",") }, allergens)
+	return ingredients, allergens
+}
