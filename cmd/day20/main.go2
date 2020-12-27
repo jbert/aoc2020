@@ -9,6 +9,38 @@ import (
 )
 
 func main() {
+	/*
+	s := `
+Tile 2311:
+..##.#..#.
+##..#.....
+#...##..#.
+####.#...#
+##.##.###.
+##...#.###
+.#.#.#..##
+..#....#..
+###...#.#.
+..###..###
+`
+	s = strings.TrimLeft(s, "\n")
+	s = strings.TrimRight(s, "\n")
+	bits := strings.Split(s, "\n")
+	tp := ParseTilePiece(bits)
+	fmt.Printf("TP: %s\n\n", tp)
+
+	TP = make(map[TPID]TilePiece)
+	TP[tp.ID] = tp
+
+	for _, form := range tp.Forms() {
+		fmt.Printf("%s\n%s\n\n", form, form.Interior())
+	}
+	*/
+		
+	main2()
+}
+
+func main2() {
 	a := aoc.New(20)
 	a.SetExampleData(`
 Tile 2311:
@@ -119,12 +151,12 @@ Tile 3079:
 ..#.......
 ..#.###...
 `)
-//	a.UseExampleData(true)
+//a.UseExampleData(true)
 	groups := a.ReadLineGroups()
 	tilePieces := aoc.Map(ParseTilePiece, groups)
 
-	size = int(math.Sqrt(float64(len(tilePieces))))
-	if size*size != len(tilePieces) {
+	SideLength = int(math.Sqrt(float64(len(tilePieces))))
+	if SideLength*SideLength != len(tilePieces) {
 		panic("wtf?")
 	}
 	/*
@@ -171,7 +203,7 @@ Tile 3079:
 	// Our list of possible arrangements
 	possibles := []Possibility{
 		{
-			image:  aoc.NewMatrix[*OrientedTile](size, size),
+			image:  aoc.NewMatrix[*OrientedTile](SideLength, SideLength),
 			remaining: set.New[TPID](),
 			completed: 0,
 		},
@@ -196,23 +228,181 @@ Tile 3079:
 			found = &fanOut[0]
 			break SEARCH
 		}
-		fmt.Printf("Expanded: completed %d to more %d possibles\n", p.completed, len(fanOut))
+//		fmt.Printf("Expanded: completed %d to more %d possibles\n", p.completed, len(fanOut))
 		possibles = append(possibles, fanOut...)
 	}
 
 	if found != nil {
-		fmt.Printf("Found a completion\n%s\n", found)
+		fmt.Printf("Found a completion\n%s\n", found.image)
 		tl := found.image.Get(0,0).ID
-		tr := found.image.Get(size-1,0).ID
-		bl := found.image.Get(0,size-1).ID
-		br := found.image.Get(size-1,size-1).ID
+		tr := found.image.Get(SideLength-1,0).ID
+		bl := found.image.Get(0,SideLength-1).ID
+		br := found.image.Get(SideLength-1,SideLength-1).ID
 		fmt.Printf("Product = %d * %d * %d * %d = %d\n", tl, tr, bl, br, tl*tr*bl*br)
 	} else {
 		fmt.Printf("No solution\n")
 	}
+
+	/*
+	testImage := ImageFromString(`
+.#.#..#.##...#.##..#####
+###....#.#....#..#......
+##.##.###.#.#..######...
+###.#####...#.#####.#..#
+##.#....#.##.####...#.##
+...########.#....#####.#
+....#..#...##..#.#.###..
+.####...#..#.....#......
+#..#.##..#..###.#.##....
+#.####..#.####.#.#.###..
+###.#.#...#.######.#..##
+#.####....##..########.#
+##..##.#...#...#.#.#.#..
+...#..#..#.#.##..###.###
+.#.#....#.##.#...###.##.
+###.#...#..#.##.######..
+.#.#.###.##.##.#..#.##..
+.####.###.#...###.#..#.#
+..#.#..#..#.#.#.####.###
+#..####...#.#.#.###.###.
+#####..#####...###....##
+#.##..#..#...#..####...#
+.#.###..##..##..####.##.
+...###...##...#...#..###
+`)
+	waterRoughness := testImage.FindRoughness()
+*/
+	image := deTile(found.image)
+	waterRoughness := image.FindRoughness()
+	fmt.Printf("Roughness: %d\n", waterRoughness)
 }
 
-var size int
+func ImageFromString(s string) Image {
+	s = strings.TrimLeft(s, "\n")
+	s = strings.TrimRight(s, "\n")
+	lines := strings.Split(s, "\n")
+	image := NewImage(len(lines))
+	for j, line := range lines {
+		for i := range line {
+			image.i.Set(i, j, aoc.PrettyByte(line[i]))
+		}
+	}
+
+	return image
+}
+
+func (image Image) FindRoughness() int {
+
+	for i := 0; i < 4; i++ {
+		image.MarkMonsters()
+		image.i = image.i.Rot90()
+	}
+
+	image.i = image.i.VerticalFlip()
+	for i := 0; i < 4; i++ {
+		image.MarkMonsters()
+		image.i = image.i.Rot90()
+	}
+	waterCount := 0
+
+	image.i.VisitWithNeighbours(func(v aoc.PrettyByte, ns []aoc.PrettyByte) aoc.PrettyByte {
+		if v == '#' {
+			waterCount++
+		}
+		return v
+	})
+	fmt.Printf("JB\n%s\n", image.i)
+	return waterCount
+}
+
+type Image struct {
+	i *aoc.Matrix[aoc.PrettyByte]
+}
+
+func NewImage(size int) Image {
+	return Image{i: aoc.NewMatrix[aoc.PrettyByte](size,size)}
+}
+
+func deTile(tiledImage *aoc.Matrix[*OrientedTile]) Image {
+	interiorEdgeLength := len(tiledImage.Get(0,0).Top()) - 2
+	size := tiledImage.Width * interiorEdgeLength
+	image := NewImage(size)
+	for i := 0; i < SideLength; i++ {
+		for j := 0; j < SideLength; j++ {
+			interior := tiledImage.Get(i,j).Interior()
+//			fmt.Printf("JB I\n%s\n", interior)
+			for di := 0; di < interior.Width; di++ {
+				for dj := 0; dj < interior.Width; dj++ {
+					v := interior.Get(di, dj)
+					image.i.Set(i * interiorEdgeLength + di, j * interiorEdgeLength + dj, aoc.PrettyByte(v))
+				}
+			}
+		}
+	}
+	return image
+}
+
+var monster []string = []string{
+	"                  # ",
+	"#    ##    ##    ###",
+	" #  #  #  #  #  #   ",
+}
+
+func (image *Image) MarkMonsters() {
+	monsterWidth := len(monster[0])
+	monsterHeight := len(monster)
+
+	for i := 0; i < image.i.Width - monsterWidth; i++ {
+		for j := 0; j < image.i.Height - monsterHeight; j++ {
+			if image.MonsterAt(i, j) {
+				fmt.Printf("Found monster at: (%d,%d)\n", i, j)
+				image.MarkMonsterAt(i, j)
+			}
+		}
+	}
+}
+
+func (image *Image) MonsterAt(i, j int) bool {
+	monsterMatchCount := 1 + 8 + 6 
+
+	matchCount := 0
+	for dj := range monster {
+		COLUMN:
+		for di := range monster[0] {
+			if monster[dj][di] != '#' {
+				// Spaces can be anything
+				continue COLUMN
+			}
+			v := image.i.Get(i+di, j+dj)
+			if v == '#' || v == 'O' {
+				matchCount++
+			}
+		}
+	}
+
+	return matchCount == monsterMatchCount
+}
+
+func (image *Image) MarkMonsterAt(i, j int) {
+
+	for dj := range monster {
+		COLUMN:
+		for di := range monster[0] {
+			if monster[dj][di] != '#' {
+				// Spaces can be anything
+				continue COLUMN
+			}
+			v := image.i.Get(i+di, j+dj)
+			if !(v == '#' || v == 'O') {
+				fmt.Printf("JB\n%s\n", image.i)
+				panic(fmt.Sprintf("on the streets of london: found %c at %d,%d", v, i+di, j+dj))
+			}
+			image.i.Set(i+di, j+dj, 'O')
+		}
+	}
+}
+
+var SideLength int
 var TP map[TPID]TilePiece
 
 type TPID int
@@ -228,8 +418,8 @@ type Possibility struct {
 
 func (p Possibility) Expand() []Possibility {
 //	fmt.Printf("JB Expanding %p completed %d\n", p.image, p.completed)
-	i := p.completed % size
-	j := p.completed / size
+	i := p.completed % SideLength
+	j := p.completed / SideLength
 	if p.image.Get(i, j) != nil {
 //		fmt.Printf("JB - %p at 0,0: %p\n", p.image, p.image.Get(0,0))
 //		fmt.Printf("JB - %p at 1,0: %p\n", p.image, p.image.Get(1,0))
@@ -334,7 +524,36 @@ type OrientedTile struct {
 }
 
 func (ot OrientedTile) String() string {
-	return "todo"
+	tp := TP[ot.ID]
+	m := tp.Contents()
+	m = ot.transform(m)
+	return fmt.Sprintf("OT: %d degrees, %t flipped\n%s", ot.Angle, ot.Flipped, m.String())
+}
+
+func (ot OrientedTile) transform(m *aoc.Matrix[aoc.PrettyByte]) *aoc.Matrix[aoc.PrettyByte] {
+	for angle := 0; angle < ot.Angle; angle += 90 {
+		m = m.Rot90()
+	}
+	if ot.Flipped {
+//		fmt.Printf("JB before flip\n%s\n", m)
+		m = m.VerticalFlip()
+//		fmt.Printf("JB after flip\n%s\n", m)
+	}
+	return m
+}
+
+func (ot OrientedTile) Interior() *aoc.Matrix[aoc.PrettyByte] {
+	tp := TP[ot.ID]
+	m := tp.Contents()
+	interiorSide := len(tp.lines) - 2
+	interiorContents := aoc.NewMatrix[aoc.PrettyByte](interiorSide, interiorSide)
+	for i := 0; i < interiorSide; i++ {
+		for j := 0; j < interiorSide; j++ {
+			v := m.Get(i+1, j+1)
+			interiorContents.Set(i, j, aoc.PrettyByte(v))
+		}
+	}
+	return ot.transform(interiorContents)
 }
 
 // All edges run clockwise
@@ -412,12 +631,12 @@ func (tp TilePiece) Forms() []*OrientedTile {
 		forms = append(forms, &OrientedTile{
 			ID: tp.ID,
 			Angle: angle,
-			Flipped: true,
+			Flipped: false,
 		})
 		forms = append(forms, &OrientedTile{
 			ID: tp.ID,
 			Angle: angle,
-			Flipped: false,
+			Flipped: true,
 		})
 	}
 	return forms
@@ -451,4 +670,14 @@ func (tp *TilePiece) init() {
 	edges.right = string(right)
 
 	tp.edges = edges
+}
+
+func (tp TilePiece) Contents() *aoc.Matrix[aoc.PrettyByte] {
+	m := aoc.NewMatrix[aoc.PrettyByte](len(tp.lines), len(tp.lines[0]))
+	for j, row := range tp.lines {
+		for i := range row {
+			m.Set(i, j, aoc.PrettyByte(row[i]))
+		}
+	}
+	return m
 }

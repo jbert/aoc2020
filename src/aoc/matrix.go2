@@ -4,12 +4,12 @@ import (
 	"fmt"
 )
 
-type Matrix[T fmt.Stringer] struct {
+type Matrix[T] struct {
 	Width, Height int
 	cells [][]T
 }
 
-func NewMatrix[T fmt.Stringer](width, height int) *Matrix[T] {
+func NewMatrix[T](width, height int) *Matrix[T] {
 	m := Matrix[T]{
 		Width: width,
 		Height: height,
@@ -19,6 +19,26 @@ func NewMatrix[T fmt.Stringer](width, height int) *Matrix[T] {
 		m.cells[j] = make([]T, width)
 	}
 	return &m
+}
+
+func (m Matrix[T]) Rot90() *Matrix[T] {
+	// Switch width/height
+	newM := NewMatrix[T](m.Height, m.Width)
+
+	for j := range m.cells {
+		for i, v := range m.cells[j] {
+			newM.Set(newM.Width-j-1, i, v)
+		}
+	}
+	return newM
+}
+
+func (m Matrix[T]) VerticalFlip() *Matrix[T] {
+	newM := NewMatrix[T](m.Width, m.Height)
+	for j, row := range m.cells {
+		copy(newM.cells[m.Height - j - 1], row)
+	}
+	return newM
 }
 
 func (m *Matrix[T]) VisitWithNeighbours(f func(v T, ns[]T) T) *Matrix[T] {
@@ -47,7 +67,10 @@ func (m *Matrix[T]) Copy() *Matrix[T] {
 func (m *Matrix[T]) String() string {
 	s := fmt.Sprintf("(%d,%d)\n", m.Width, m.Height)
 	for _, row := range m.cells {
-		s += fmt.Sprintf("%v\n", row)
+		for _, v := range row {
+			s += fmt.Sprintf("%v", v)
+		}
+		s += "\n"
 	}
 	return s
 }
