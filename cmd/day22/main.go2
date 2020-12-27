@@ -1,0 +1,109 @@
+package main
+
+import (
+	"aoc"
+	"fmt"
+)
+
+func main() {
+	a := aoc.New(22)
+	a.SetExampleData(`
+Player 1:
+9
+2
+6
+3
+1
+
+Player 2:
+5
+8
+4
+7
+10
+`)
+	//	a.UseExampleData(true)
+	groups := a.ReadLineGroups()
+	decks := aoc.Map(parseDeck, groups)
+	if len(decks) != 2 {
+		panic("on the streets of birmingham")
+	}
+	game := NewGame(decks[0], decks[1])
+
+	for !game.Over() {
+		game.Round()
+	}
+	scores := game.Scores()
+	fmt.Printf("scores: %v\n", scores)
+}
+
+type Deck struct {
+	name  string
+	cards []int
+}
+
+func parseDeck(lines []string) *Deck {
+	var deck Deck
+	deck.name = lines[0]
+	deck.cards = aoc.Map(aoc.MustAtoi, lines[1:])
+	return &deck
+}
+
+func (d Deck) NumCards() int {
+	return len(d.cards)
+}
+
+func (d *Deck) Pop() int {
+	card := d.cards[0]
+	d.cards = d.cards[1:]
+	return card
+}
+
+func (d *Deck) Shift(card int) {
+	d.cards = append(d.cards, card)
+}
+
+func (d *Deck) Score() int {
+	score := 0
+	for i := range d.cards {
+		j := len(d.cards) - i - 1
+		score += d.cards[j] * (i + 1)
+	}
+	return score
+}
+
+type Game struct {
+	A, B *Deck
+}
+
+func NewGame(a, b *Deck) *Game {
+	return &Game{
+		A: a,
+		B: b,
+	}
+}
+
+func (g *Game) Over() bool {
+	return g.A.NumCards() == 0 || g.B.NumCards() == 0
+}
+
+func (g *Game) Round() {
+	if g.Over() {
+		panic("logic error")
+	}
+	a, b := g.A.Pop(), g.B.Pop()
+	switch {
+	case a > b:
+		g.A.Shift(a)
+		g.A.Shift(b)
+	case a < b:
+		g.B.Shift(b)
+		g.B.Shift(a)
+	default:
+		panic("cards should all be different")
+	}
+}
+
+func (g *Game) Scores() []int {
+	return []int{g.A.Score(), g.B.Score()}
+}
