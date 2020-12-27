@@ -15,7 +15,7 @@ trh fvjkl sbzzf mxmxvkd (contains dairy)
 sqjhc fvjkl (contains soy)
 sqjhc mxmxvkd sbzzf (contains fish)
 `)
-	// a.UseExampleData(true)
+	//a.UseExampleData(true)
 	lines := a.ReadLines()
 
 	suspects := make(map[string]set.Set[string])
@@ -54,6 +54,42 @@ sqjhc mxmxvkd sbzzf (contains fish)
 		}
 	}
 	fmt.Printf("sum %d\n", sum)
+
+
+	allergens := set.New[string]()
+	isContainedIn := make(map[string]string)
+TRY:
+	for len(suspects) > 0 {
+
+		for allergen, possibles := range suspects {
+			allergens.Insert(allergen)
+			if possibles.Size() == 1 {
+				ingredient := possibles.Choose()	// There is only one
+				if _, ok := isContainedIn[allergen]; ok {
+					panic(fmt.Sprintf("found two isContainedIn for %s", allergen))
+				}
+				isContainedIn[allergen] = ingredient
+				delete(suspects, allergen)
+
+				for _, possibles := range suspects {
+					possibles.Remove(ingredient)
+				}
+				continue TRY
+			}
+		}
+		panic("Didn't find any 1-length possible lists")
+	}
+
+	for allergen, ingredient := range isContainedIn {
+		fmt.Printf("%s contains %s\n", ingredient, allergen)
+	}
+
+
+	var bits []string
+	for _, allergen := range aoc.Sort(allergens.Slice()) {
+		bits = append(bits, isContainedIn[allergen])
+	}
+	fmt.Printf("%s\n", strings.Join(bits, ","))
 }
 
 func parseLine(s string) ([]string, []string) {
