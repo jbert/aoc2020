@@ -2,6 +2,7 @@ package main
 
 import (
 	"aoc"
+	"aoc/set"
 	"fmt"
 )
 
@@ -22,7 +23,7 @@ Player 2:
 7
 10
 `)
-	//	a.UseExampleData(true)
+	//a.UseExampleData(true)
 	groups := a.ReadLineGroups()
 	decks := aoc.Map(parseDeck, groups)
 	if len(decks) != 2 {
@@ -33,8 +34,7 @@ Player 2:
 	for !game.Over() {
 		game.Round()
 	}
-	scores := game.Scores()
-	fmt.Printf("scores: %v\n", scores)
+	fmt.Printf("scores: %d\n", game.Winner().Score())
 }
 
 type Deck struct {
@@ -74,12 +74,15 @@ func (d *Deck) Score() int {
 
 type Game struct {
 	A, B *Deck
+	seen *set.Set[string]
 }
 
 func NewGame(a, b *Deck) *Game {
+	seen := set.New[string]()
 	return &Game{
-		A: a,
-		B: b,
+		A:    a,
+		B:    b,
+		seen: &seen,
 	}
 }
 
@@ -91,19 +94,82 @@ func (g *Game) Round() {
 	if g.Over() {
 		panic("logic error")
 	}
+
+	//fmt.Printf("A deck - %v\n", g.A.cards)
+	//fmt.Printf("B deck - %v\n", g.B.cards)
+
+	gameState := g.State()
+	if g.seen.Contains(gameState) {
+		// the game instantly ends in a win for player 1.
+		//fmt.Printf("Seen before - A wins\n")
+		g.B.cards = []int{}
+		if !g.Over() {
+			panic("can't force a win?")
+		}
+		return
+	}
+	g.seen.Insert(gameState)
+
+	// Look at your cards
 	a, b := g.A.Pop(), g.B.Pop()
-	switch {
-	case a > b:
+
+	//fmt.Printf("A plays %d\n", a)
+	//fmt.Printf("B plays %d\n", b)
+	var aWins bool
+	if a <= g.A.NumCards() && b <= g.B.NumCards() {
+		//fmt.Printf("Play Sub Game\n\n")
+//		fmt.Printf("JB - a %d aNC %d b %d bNC %d %s\n", a, b, g.A.NumCards(), g.B.NumCards(), gameState)
+		// Copied cards
+		aNew := &Deck{cards: make([]int, a)}
+		copy(aNew.cards, g.A.cards[:a])
+		bNew := &Deck{cards: make([]int, b)}
+		copy(bNew.cards, g.B.cards[:b])
+		newG := NewGame(aNew, bNew)
+		// Unshared memoisation
+		newSeen := set.New[string]()
+		newG.seen = &newSeen
+
+		for !newG.Over() {
+			newG.Round()
+		}
+		aWins = newG.Winner() == aNew
+		//fmt.Printf("Leaving sub game: aWins %t\n", aWins)
+
+	} else {
+		aWins = a > b
+	}
+
+	if aWins {
+		//fmt.Printf("A Wins\n")
 		g.A.Shift(a)
 		g.A.Shift(b)
-	case a < b:
+	} else {
+		//fmt.Printf("B Wins\n")
 		g.B.Shift(b)
 		g.B.Shift(a)
-	default:
-		panic("cards should all be different")
 	}
+
+	//fmt.Printf("\n")
+}
+
+func (g *Game) State() string {
+	return fmt.Sprintf("A: %v B %v", g.A.cards, g.B.cards)
 }
 
 func (g *Game) Scores() []int {
 	return []int{g.A.Score(), g.B.Score()}
+}
+
+func (g *Game) Winner() *Deck {
+	if !g.Over() {
+		panic("no winner yet")
+	}
+	switch {
+	case g.A.NumCards() == 0:
+		return g.B
+	case g.B.NumCards() == 0:
+		return g.A
+	default:
+		panic("wtf?")
+	}
 }
