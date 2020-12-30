@@ -3,10 +3,17 @@ package main
 import (
 	"aoc"
 	"fmt"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"strings"
+	"time"
 )
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	a := aoc.New(23)
 	a.SetExampleData(`
 389125467
@@ -16,6 +23,7 @@ func main() {
 	cups := parseLine(lines[0])
 	fmt.Printf("cups: %s\n", cups)
 
+	logging = true
 	move := 1
 	numMoves := 100
 	for move <= numMoves {
@@ -25,7 +33,52 @@ func main() {
 	}
 	fmt.Printf("\nFinal: cups: %s\n", cups)
 	fmt.Printf("After1 order: %s\n", cups.Order())
+
+	// Reset cups
+	logging = false
+	cups = parseLine(lines[0])
+	cups.ExtendTo(10, 1000*1000)
+	move = 1
+	numMoves = 10 * 1000 * 1000
+	start := time.Now()
+	last := start
+	reportEvery := 1000
+	for move <= numMoves {
+		//		if move > 875004 {
+		//			cups.CheckLinks()
+		//		}
+		foo := cups.find(1).next.v
+		if foo == 1 {
+			panic(fmt.Sprintf("move %d: one-one - wtf?", move))
+		}
+		if move%reportEvery == 0 {
+			totalDur := time.Since(start)
+			lastDur := time.Since(last)
+			movesPerSec := float64(reportEvery) / float64(lastDur) * float64(time.Second)
+			totalMovesPerSec := float64(move) / float64(totalDur) * float64(time.Second)
+			fmt.Printf("%s: Move %d. Last %d in %s. Recent %f moves/sec, overall %f\n", totalDur, move, reportEvery, lastDur, movesPerSec, totalMovesPerSec)
+			last = time.Now()
+		}
+		cups.Move()
+		move++
+	}
+	one := cups.find(1)
+	A := one.next.v
+	B := one.next.next.v
+	fmt.Printf("a %d * b %d = %d\n", A, B, A*B)
+
 }
+
+func (c *Cups) CheckLinks() {
+	fmt.Printf("Checklinks\n")
+	for node := c.cups; node.next != c.cups; node = node.next {
+		if node.next == node {
+			panic(fmt.Sprintf("%+v has self-next", node))
+		}
+	}
+}
+
+var logging bool
 
 type Node struct {
 	v    int
@@ -33,18 +86,46 @@ type Node struct {
 }
 
 type Cups struct {
-	cups *Node
+	cups      *Node
+	lo, hi    int // Not exact, just helps constrain the lookup
+	labelNode map[int]*Node
+	pickedUp  map[int]bool
+}
+
+func (c *Cups) ExtendTo(from int, max int) {
+	var last *Node
+	for last = c.cups.next; last.next != c.cups; last = last.next {
+	}
+	// So last.next == c.cups
+	// Extend here
+	for v := from; v <= max; v++ {
+		newNode := &Node{v: v, next: c.cups}
+		last.next = newNode
+		c.labelNode[v] = newNode
+
+		last = newNode
+	}
+	c.hi = max
+	fmt.Printf("Extend - have %d labels\n", len(c.labelNode))
 }
 
 func NewCups(vs []int) *Cups {
 	nodes := aoc.Map(func(v int) *Node { return &Node{v: v} }, vs)
-	for i := range nodes {
+	c := &Cups{
+		cups:      nodes[0],
+		lo:        1,
+		hi:        len(vs),
+		labelNode: make(map[int]*Node),
+		pickedUp:  make(map[int]bool),
+	}
+	for i, node := range nodes {
 		if i != len(nodes)-1 {
-			nodes[i].next = nodes[i+1]
+			node.next = nodes[i+1]
 		}
+		c.labelNode[nodes[i].v] = node
 	}
 	nodes[len(nodes)-1].next = nodes[0]
-	return &Cups{cups: nodes[0]}
+	return c
 }
 
 func parseLine(s string) *Cups {
@@ -66,20 +147,26 @@ func (c *Cups) Move() {
 	var pickup []int
 	for node := first; node != last.next; node = node.next {
 		pickup = append(pickup, node.v)
+		c.pickedUp[node.v] = true
 	}
-	fmt.Printf("pickup %v\n", pickup)
-	// The crab selects a destination cup: the cup with a label equal to the
-	// current cup's label minus one.
-	fmt.Printf("destination %d\n", c.cups.v-1)
+	if logging {
+		fmt.Printf("pickup %v\n", pickup)
+		// The crab selects a destination cup: the cup with a label equal to the
+		// current cup's label minus one.
+		fmt.Printf("destination %d\n", c.cups.v-1)
+	}
 	dest := c.MoveFind(c.cups.v - 1)
 	last.next = dest.next
 	dest.next = first
+
+	// Everything put down, empty the map
+	c.pickedUp = make(map[int]bool)
 
 	c.cups = c.cups.next
 }
 
 func (c *Cups) Order() string {
-	one, _, _ := c.find(1)
+	one := c.find(1)
 	s := ""
 	for node := one.next; node != one; node = node.next {
 		s += fmt.Sprintf("%d", node.v)
@@ -89,7 +176,7 @@ func (c *Cups) Order() string {
 
 func (c *Cups) MoveFind(label int) *Node {
 	//	fmt.Printf("cups %s movefind %d\n", c, label)
-	node, lo, hi := c.find(label)
+	node := c.find(label)
 	if node != nil {
 		return node
 	}
@@ -100,38 +187,26 @@ func (c *Cups) MoveFind(label int) *Node {
 		the value goes below the lowest value on any cup's label, it wraps
 		around to the highest value on any cup's label instead.
 	*/
-	for label >= lo {
-		node, _, _ := c.find(label)
+	for {
+		node := c.find(label)
 		if node != nil {
 			return node
 		}
 		label--
+		if label < c.lo {
+			label = c.hi
+			fmt.Printf("label %d lo %d hi %d\n", label, c.lo, c.hi)
+		}
 	}
-	node, _, _ = c.find(hi)
-	if node == nil {
-		panic("wtf")
-	}
-	return node
+	panic("not reached")
 }
 
-func (c *Cups) find(label int) (*Node, int, int) {
-	if c.cups.v == label {
-		return c.cups, 0, 0
+func (c *Cups) find(label int) *Node {
+	if _, ok := c.pickedUp[label]; !ok {
+		return c.labelNode[label]
 	}
-	lo := 0
-	hi := 0
-	for node := c.cups.next; node != c.cups; node = node.next {
-		if node.v == label {
-			return node, 0, 0
-		}
-		if lo == 0 || node.v < lo {
-			lo = node.v
-		}
-		if hi == 0 || node.v > hi {
-			hi = node.v
-		}
-	}
-	return nil, lo, hi
+
+	return nil
 }
 
 func (c *Cups) Take(howMany int) (*Node, *Node) {
